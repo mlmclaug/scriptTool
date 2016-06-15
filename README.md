@@ -16,12 +16,14 @@ and then call your script as follows:
 where
 
 dbc = the database connection information such as the following: 
+~~~~
       /, /@prod, joe@aist, 
       or joe@jdbc:oracle:thin:@ldap://ldap.uvm.edu:389/AIST, CN=...
-      If the userid or password is not supplied, they will be prompted for.
-      Note: Normally uses the Oracle JDBC thin client, except when 
-            connecting w/ OS Authentication using SEPS (/). When OSAuth,
-            the Oracle OCI client is used to connect to the database.
+~~~~
+If the userid or password is not supplied, they will be prompted for.
+Note: Normally uses the Oracle JDBC thin client, except when 
+connecting w/ OS Authentication using SEPS (/). When OSAuth,
+the Oracle OCI client is used to connect to the database.
 
 -enableBanner = if specified, banner security checking and banner role 
                 elevation will be performed.
@@ -44,13 +46,16 @@ The following objects/variables are made available for use in your script:
 
 sql - a Groovy Sql object, connected to Database & banner security has been 
 		applied.
+
 rpt - a TabularReport instance.
 
 dbname   - database name
+
 username - id of the database user  - convenience variable
 
 ck       - a map of available validation methods. Contains:
           required, isNumber, isInteger, isBigDecimal, isInList, isBetween, 
           isDate, isStudentID, isAIDY, isTermCD
+
 tr       - a map of available translation methods. Contains:
           studentid2pidm, term2aidy
