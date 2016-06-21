@@ -180,6 +180,7 @@ ck       - a map of available validation methods. Contains:
 tr       - a map of available translation methods. Contains:
           ''' + tr.collect({key,value->return key}).join(', ') + '''
 
+dbgShow(msg) - This method prints msg to stdout if -verbose. debug messages.
 '''
 	}
 	Map getDBConnectionInfo(){
@@ -280,7 +281,7 @@ tr       - a map of available translation methods. Contains:
 
 	void openDBConnection(Map dbc) {
 		//dbc = Map [uid, pwd, url, scriptnm]
-		disp "Open Connection to Database and set dbname and username."
+		dbgShow "Open Connection to Database and set dbname and username."
 		sql = Sql.newInstance(dbc.url, dbc.uid, dbc.pwd, "oracle.jdbc.OracleDriver")
 		dbname = sql.firstRow("select value from sys.v_\$parameter where name = 'db_name'").value
 		username = sql.firstRow("select user from user_users").user
@@ -289,7 +290,7 @@ tr       - a map of available translation methods. Contains:
 	    if (args.any { it == '-enableBanner'}){
 			// Set Banner Secutity - prints message if not permitted and security is not elevated.
 			// Reduce log level to hide security code being executed when error is thrown
-			disp "Setting Banner secuity."
+			dbgShow "Setting Banner secuity."
 		    def loglvl = Sql.LOG.level
 		    try{
 		    	Sql.LOG.level = java.util.logging.Level.SEVERE
@@ -315,12 +316,12 @@ tr       - a map of available translation methods. Contains:
 	String promptpw(String prompt_text){
 	   System.console().readPassword(prompt_text).toString()
 	}
-	void disp(String msg){
+	void dbgShow(String msg){
 		if (verbose){println msg}
 	}
 	void disp_dbc(Map dbc){
-		disp "Connection Info: user= ${dbc.uid}, password= ${'-'.multiply(dbc.pwd.size())}   object: ${dbc.scriptnm}"
-		disp "            url: ${dbc.url}"
+		dbgShow "Connection Info: user= ${dbc.uid}, password= ${'-'.multiply(dbc.pwd.size())}   object: ${dbc.scriptnm}"
+		dbgShow "            url: ${dbc.url}"
 	}
 	String[] fetchParmBuffer(){
 		// extracts from the command line any arguments that will be used as responses to 
@@ -372,6 +373,12 @@ tr       - a map of available translation methods. Contains:
 	return f
 	}
 
+	void truncFile( File f) {
+		// truncate file if not empty
+		if ( f.exists() && f.isFile() && f.size()>0 ) {
+			f.write('')
+		}
+	}
 
 // Banner Security for Object... do I have permission to execute this object?
 private static String setBanSecr = '''
@@ -417,33 +424,34 @@ end;
 		try {
 			// Run actually script code.
 			final result = runCode()
-		disp "Script return value = $result"
+		dbgShow "Script return value = $result"
 		} finally {
-			disp '>Clearing state.'
+			dbgShow '>Clearing state.'
 			sql?.close()
 			
 			if (rpt.pgno != 0 || rpt.pgrow != 0){
 				rpt?.close()
 			}
 			
-			disp '>Clearing state is done.'
+			dbgShow '>Clearing state is done.'
 		}
 	}
 	 
 	private void initialize() {
 		verbose =  args.any { it == '-verbose'}
-		disp '>Initializing state.'
-		disp "Arguments: ${args}"
+		dbgShow '>Initializing state.'
+		dbgShow "Arguments: ${args}"
 		parmbuf = fetchParmBuffer()
         Map dbc = getDBConnectionInfo()
         disp_dbc(dbc)
         openDBConnection(dbc)
-        disp 'Setting up report instance.' 
+        dbgShow 'Setting up report instance.' 
 		rpt = new TabularReport() 
 		rpt.outputDest = getReportDestination(args)
+		truncFile( rpt.outputDest )
 		registerValidations()
 		registerTranslations()
-		disp '>Initializing state is done.'
+		dbgShow '>Initializing state is done.'
 	}
 	 
 	// Abstract method as placeholder for the actual script code to run.
