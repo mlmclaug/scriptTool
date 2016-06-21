@@ -78,6 +78,10 @@ abstract class ScriptTool  extends groovy.lang.Script {
 			String term = sql.firstRow('select stvterm_code from stvterm where stvterm_code = ?',[termcd])?.stvterm_code
 			printIfFalse( !termcd || term , "*** Invalid Term Code: ${termcd}.") 
 		}
+		ck['fileExists'] = {filename ->
+			File f = new File(filename)
+			printIfFalse( !filename || (f.exists() && f.isFile()), "*** File not found: ${filename}.") 
+		}
 	}
 
     void registerTranslations(){
