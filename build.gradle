@@ -29,6 +29,7 @@ dependencies {
     compile 'org.codehaus.groovy:groovy-all:2.4.6'
     compile 'com.oracle:ojdbc6:11.2.0'
     compile 'edu.uvm.banner:tabularreport:0.0.1'
+    compile group: 'javax.mail', name: 'mail', version: '1.4.7'
 
     // We use the awesome Spock testing and specification framework
     testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'

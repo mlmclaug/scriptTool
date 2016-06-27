@@ -191,6 +191,13 @@ tr       - a map of available translation methods. Contains:
           ''' + tr.collect({key,value->return key}).join(', ') + '''
 
 dbgShow(msg) - This method prints msg to stdout if -verbose. debug messages.
+
+email(Map settings).send()
+	where settings is a map of email properties as follows:
+	[to:x@uvm.edu, cc:..., bcc:..., 
+	subject:'text', body:'blah, blah, blah',
+	attachments['filename1','filename2',...] ]
+
 '''
 	}
 	Map getDBConnectionInfo(){
@@ -385,9 +392,13 @@ dbgShow(msg) - This method prints msg to stdout if -verbose. debug messages.
 
 	void truncFile( File f) {
 		// truncate file if not empty
-		if ( f.exists() && f.isFile() && f.size()>0 ) {
+		if ( f && f.exists() && f.isFile() && f.size()>0 ) {
 			f.write('')
 		}
+	}
+
+	Email email(Map m){
+		new Email(m)
 	}
 
 // Banner Security for Object... do I have permission to execute this object?
