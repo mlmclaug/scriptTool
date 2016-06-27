@@ -27,6 +27,7 @@ import edu.uvm.banner.general.reporter.*;
 abstract class ScriptTool  extends groovy.lang.Script {
 	Sql sql           // Groovy Sql object, connected to Database & banner security has been applied.
 	TabularReport rpt // reporter instance
+	CSV csv
 	String dbname     // database name - convenience variable
 	String username   // id of the database user  - convenience variable
     def ck  = [:]     // map of validation methods
@@ -181,7 +182,7 @@ The following are made available for use in your script:
 sql - a Groovy Sql object, connected to Database & banner security has been 
 		applied.
 rpt - a TabularReport instance.
-
+csv - a CSV instance for reading/parsing csv files.
 dbname   - database name
 username - id of the database user  - convenience variable
 
@@ -472,6 +473,7 @@ end;
 		truncFile( rpt.outputDest )
 		registerValidations()
 		registerTranslations()
+		csv = new CSV()
 		dbgShow '>Initializing state is done.'
 	}
 	 
