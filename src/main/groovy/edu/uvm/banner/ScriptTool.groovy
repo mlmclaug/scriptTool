@@ -13,6 +13,9 @@ TODO:
 (*) Integrate w/ Banner Jobsub oneup (and optionally retain oneup values in the database)???
 (*) Indentify and define additional common input constraints.
 (*) Indentify and define additional common translation methods.
+(*) Banner population maintenance
+(*) Send email w/ attachments
+(*) Read CSV files.
 (*) get any hard coded properties from a external properties file.
 
 */
@@ -46,10 +49,13 @@ abstract class ScriptTool  extends groovy.lang.Script {
 				printIfFalse( ( !item || list.any { it == item } ), "*** Invalid input: ${item}. must be one of ${list}.")}
 		ck['isBetween'] = {item, min=0, max=0 -> 
 	        def inp // if min is a number... do a number compare. otherwise to string compare.
-	        if (min instanceof java.lang.String){inp = item}
-	        if (min instanceof java.math.BigDecimal){ inp =  cvt2num(item)}
-	        if (min instanceof java.lang.Integer){inp = cvt2num(item)}
-	        printIfFalse( inp >= min && inp <= max || !item , "*** Invalid input: ${item}. must be between ${min} and ${max}.")
+	        if (min instanceof java.math.BigDecimal){ inp =  cvt2num(item)
+	        } else if (min instanceof java.lang.Integer){inp = cvt2num(item)
+	        } else {inp = item //String
+	        } 
+
+	        printIfFalse( inp >= min && inp <= max || !item , 
+	        	"*** Invalid input: ${item}. must be between ${min} and ${max}.")
 		}
 		ck['isDate'] = {it, fmt = 'MM/dd/yyyy' -> 
 			//Preliminary...probably/surely are better ways to do this....
