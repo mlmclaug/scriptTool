@@ -45,7 +45,7 @@ public class Email {
 	void openSession(){
 		// Get the Session object.
 		Properties props = new Properties();
-		props.put("mail.smtp.starttls.enable", "true");
+		props.put("mail.smtp.starttls.enable", starttls);
 		props.put("mail.smtp.host", host);
 		props.put("mail.smtp.port", port);
 
