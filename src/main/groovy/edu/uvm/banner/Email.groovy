@@ -59,7 +59,7 @@ public class Email {
 			}
 			});
 	    }
-    	session = Session.getInstance(props,null);
+    	session = Session.getInstance(props,authenticator);
 	}
 
 

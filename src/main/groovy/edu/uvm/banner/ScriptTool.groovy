@@ -195,7 +195,7 @@ dbgShow(msg) - This method prints msg to stdout if -verbose. debug messages.
 
 email(Map settings).send()
 	where settings is a map of email properties as follows:
-	[to:x@uvm.edu, cc:..., bcc:..., 
+	[to:x@uvm.edu, cc:..., bcc:..., from: ....
 	subject:'text', body:'blah, blah, blah',
 	attachments['filename1','filename2',...] ]
 
