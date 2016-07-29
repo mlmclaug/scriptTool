@@ -14,9 +14,7 @@ TODO:
 (*) Indentify and define additional common input constraints.
 (*) Indentify and define additional common translation methods.
 (*) Banner population maintenance
-(*) Send email w/ attachments
-(*) Read CSV files.
-(*) get any hard coded properties from a external properties file.
+(*) get any hard coded properties from a external properties file or environment.
 
 */
 package edu.uvm.banner;
@@ -36,7 +34,7 @@ abstract class ScriptTool  extends groovy.lang.Script {
 	boolean verbose = false  //turned on by -verbose flag.. prints additional info about what is happening.
 	String[] parmbuf;  //buffer to hold user input parameters entered on the commandline. 
 						//get's drained by Input method.
-
+	String _transformer_buffer = '' //Do Not Use - Property is transient, used during input transformations.
     // Optional provided Input Validations.  
     // Each validation returns true is input is ok.  
     //  False if not.  When false, prints a (hopefully) helpful error message.
@@ -89,6 +87,22 @@ abstract class ScriptTool  extends groovy.lang.Script {
 			File f = new File(filename)
 			printIfFalse( !filename || (f.exists() && f.isFile()), "*** File not found: ${filename}.") 
 		}
+		ck['isInQry'] = { String qry, String fieldname = null ->
+		    // Given a query, constructs a inList check constraint
+		    // populated with all values from fieldname.
+		    // if fieldname is not supplied it is assumed to be the first column.
+		    List cds = [];
+		    if (fieldname){
+			    sql.rows(qry).each {r -> cds << r.get(fieldname) }
+		    } else {
+			    sql.rows(qry).each {r -> cds << r.getAt(0) }
+		    }
+		    ck.isInList.rcurry(cds)
+		}
+		ck['transform'] = { String data, Closure transformer ->
+			_transformer_buffer = transformer(data)
+			true
+		}
 	}
 
     void registerTranslations(){
@@ -97,6 +111,9 @@ abstract class ScriptTool  extends groovy.lang.Script {
 		}
 		tr['term2aidy'] = {termcd -> 
 			sql.firstRow('select uvm_utils.acadyr(?) aidy from dual',[termcd]).aidy
+		}
+		tr['ucase'] = {input -> 
+			input.toUpperCase()
 		}
 	}
 
@@ -135,8 +152,15 @@ abstract class ScriptTool  extends groovy.lang.Script {
 				// Run any validations on the input... if fails reprompt.
 				// validations return true if ok else false.
 				// if false the validation should print a helpful error message.
+				// Note: ck['transform'] is special and can be used to perform
+				//      a translation/transformation of the input data.
+				//      for example it can be used to convert user input into upper case.
 				if (validations ){
-					validations.each { v -> isOK = isOK && v(r) }
+					validations.each { v -> 
+						_transformer_buffer = r
+						isOK = isOK && v(r)
+						if (_transformer_buffer != r) {r = _transformer_buffer}
+					 }
 				}
 			}
 		}
@@ -198,6 +222,10 @@ email(Map settings).send()
 	[to:x@uvm.edu, cc:..., bcc:..., from: ....
 	subject:'text', body:'blah, blah, blah',
 	attachments['filename1','filename2',...] ]
+
+tr_input(closure) - generates a ck constraint that can transform/modify
+    a users input. For instance tr_input(tr.ucase) can be used to convert
+    user input into upper case.
 
 '''
 	}
@@ -400,6 +428,14 @@ email(Map settings).send()
 
 	Email email(Map m){
 		new Email(m)
+	}
+
+	Closure tr_input(Closure transformer ){
+		// performs a transformation on the user input.
+		// i.e convert to upper case, convert code to an id.......
+		// transformer is a closure that is passed user the input
+		// and returns modified user input.. i.e convert to upper case.
+		ck.transform.rcurry(transformer) 
 	}
 
 // Banner Security for Object... do I have permission to execute this object?
