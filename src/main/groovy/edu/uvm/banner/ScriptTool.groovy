@@ -328,7 +328,16 @@ tr_input(closure) - generates a ck constraint that can transform/modify
 	void openDBConnection(Map dbc) {
 		//dbc = Map [uid, pwd, url, scriptnm]
 		dbgShow "Open Connection to Database and set dbname and username."
-		sql = Sql.newInstance(dbc.url, dbc.uid, dbc.pwd, "oracle.jdbc.OracleDriver")
+	    def loglvl = Sql.LOG.level
+	    try{
+	    	Sql.LOG.level = java.util.logging.Level.SEVERE
+			sql = Sql.newInstance(dbc.url, dbc.uid, dbc.pwd, "oracle.jdbc.OracleDriver")
+	    	}catch(SQLException e){
+	    		println "Datbase Connection failed.\n" + e.getMessage()
+	    		System.exit(1);
+	    	}
+	    Sql.LOG.level = loglvl
+
 		dbname = sql.firstRow("select value from sys.v_\$parameter where name = 'db_name'").value
 		username = sql.firstRow("select user from user_users").user
 
@@ -337,7 +346,7 @@ tr_input(closure) - generates a ck constraint that can transform/modify
 			// Set Banner Secutity - prints message if not permitted and security is not elevated.
 			// Reduce log level to hide security code being executed when error is thrown
 			dbgShow "Setting Banner secuity."
-		    def loglvl = Sql.LOG.level
+		    loglvl = Sql.LOG.level
 		    try{
 		    	Sql.LOG.level = java.util.logging.Level.SEVERE
 		    	sql.call(setBanSecr, [dbc.scriptnm.toUpperCase()])
