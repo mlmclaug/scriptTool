@@ -1,0 +1,23 @@
+#!/bin/bash
+# Sample script to show some of the flavors of database connect syntax.
+# -nobanner -verbose -F... will be passed through to the script call if added as script arguments.
+
+# first provide no connection info..
+cn=
+echo "*** Connect using >$cn< ***"
+g showme.groovy $cn  "$@"
+
+# now try all these variants
+#c_array=( /  easdemo  /@prod  mlm@aist mlm@jdbc:oracle:thin:@ldap://ldap.uvm.edu:389/PROD,CN=OracleContext,dc=uvm,dc=edu)
+c_array=( /  /@prod  easdemo mlm@aist \
+            mlm@jdbc:oracle:thin:@ldap://ldap.uvm.edu:389/PROD,CN=OracleContext,dc=uvm,dc=edu \
+            mlm@jdbc:oracle:oci:@redibis2.uvm.edu:2334:AIST )
+for c in ${c_array[@]};
+do
+   echo
+   echo "*** Connect using >$c< ***"
+   g showme.groovy $c  "$@"
+   echo 
+done
+
+

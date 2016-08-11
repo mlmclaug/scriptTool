@@ -1,0 +1,410 @@
+! ========================================================================
+! file : ar_all_holds_.sqr
+! desc : SQR script to list all active holds for all students having a
+!        specified active hold.
+! auth : Bernadette Gratton, CIT/Admin Info Services
+! date : January 18, 2000
+!      : JAC August 4, 2003 Removed MPP hold info.
+!      : JZT Sept. 27, 2006 Removed expiration date from the report.
+!                           Added Level Code and FAFSA.
+!      : MLM Sept. 29, 2006 Added Hold From Date.
+!      : bss 20081117 1. Added class to report.
+!                     2. Added option to report only specific hold data.
+!      : bss 20091013 Changed to only look for people per JSK.
+!      : bss 20110726 Added status column to report.
+!      : jhp 20121008 Select by level so Jessica Kerchner can limit the
+!	 	      output to medical students.  Also modify procedure
+!		      get_level per Zoey Trenkle.
+!      : jhp 20140430 1) Identify college on output
+!		      2) Let user select by college
+! ========================================================================
+
+! 04/30/14  begin-heading 4
+! date-time   (1,1)  'MM/DD/YYYY HH24:MI'   ! 04/30/14 deprecated 18 Aug 2009
+! 04/30/14  print $current-date   (1,1)   edit 'MM/DD/YYYY HH24:MI'
+! 04/30/14  page-number (1,70) 'Page '
+! 04/30/14  print 'Student Accounting Office' (1) center
+! 04/30/14  print $db_type   (2,1)
+! 04/30/14  print $title     (2) center
+! 04/30/14  print $user      (2,7)
+! 04/30/14  print 'ID'       (4,1)
+! 04/30/14  print 'Name'     (,11) 
+! 04/30/14  print 'Acct Bal' (,38)
+! 04/30/14  print 'Hold'     (,48)
+! 04/30/14  print '  Amount' (,56)
+! 04/30/14  print 'Lvl'      (,66)
+! 04/30/14  print 'FAF'      (,70)
+! 04/30/14  print 'From_Date'(,75)
+! 04/30/14  print 'Cls'      (,87)
+! 04/30/14  print 'Sts'      (,91)
+! 04/30/14  end-heading
+
+	begin-heading 5
+	   print $title (1) center
+	   !               1         2         3         4         5         6         7         8         9         0         1         2         3         4         5 
+	   !      12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345
+	   print 'Hold' (3,122)
+	   print '    ID                 Name            Level  Class  Status  FAFSA             College               Balance    Hold    Amount      From Date' (4,1)
+	   print '==========  =========================  =====  =====  ======  =====  ==============================  ==========  ====  ==========   ===========' (5,1)
+	end-heading
+
+	begin-footing 2
+  	   print $current-date (2,1) edit 'MM/DD/YYYY HH24:MI'
+  	   print 'Database: ' (2,27)
+  	   print $db_type (2,37) 
+  	   print 'User: ' (2,49)
+  	   print $user (2,55)
+  	   page-number (2,73) 'Page '
+  	   last-page () ' of ' 
+	end-footing
+
+begin-program
+  do init_routine
+  show ''
+  show 'List All Active Holds For Students Having Active Specified Hold'
+  show ''
+  show 'date: ' $uvm_date ' ' $uvm_time
+  do get_db_type
+  do get_user
+  show ''
+  do get_parms
+  do process_records
+  if ($v_coll_name='All Colleges')			! 04/30/14
+     do process_records_no_sgbstdn			! 04/30/14
+  end-if						! 04/30/14
+  
+  print 'Accounts: ' (+2,1)
+  print #acct_cnt    () edit 9,999
+  print 'Holds:    ' (+1,1)
+  print #hold_cnt    () edit 9,999
+
+end-program
+
+begin-setup
+	page-size 58 145	! 04/30/14
+! 04/30/14   page-size 59  94
+end-setup
+
+! -----------------------------------------------------------------------------
+begin-procedure init_routine
+! -----------------------------------------------------------------------------
+!   date-time () DD-MON-YYYY &date   ! deprecated 18 Aug 2009
+  let $uvm_date = edit($current-date, 'DD-MON-YYYY')
+!   date-time () HH:MIPM     &time   ! deprecated 18 Aug 2009
+  let $uvm_time = edit($current-date, 'HH:MIPM')
+  move 0 to #acct_cnt
+  move 0 to #hold_cnt
+end-procedure
+
+! -----------------------------------------------------------------------------
+begin-procedure get_parms
+! -----------------------------------------------------------------------------
+  input $hold_code 'Enter the hold code'
+  input $allHolds 'Do you want all holds reported (Y or N)? Default N'
+  uppercase $allHolds
+  if $allHolds != 'Y'
+   let $allHolds = 'N'
+  end-if
+  input $aidy_code 'Enter Academic Year, For Instance, 0607'
+  input $termCode 'Enter Term Code Used to Calculate Class'
+  uppercase $hold_code
+  input $v_levl 'Enter level ("UG","GR","MD"...) or <return> for all levels)'
+  do specify_college			! 04/30/14 
+! 04/30/14  let $title = 
+! 04/30/14      'List All Active Holds For Students Having Active '||$hold_code||' Hold'
+
+  if ($allHolds='Y')			! 04/30/14
+     if (length($v_levl)=0)
+        let $title='List Active Holds for All Students in '||$v_coll_name||' with an '||$hold_code||' Hold'
+     else
+        let $title='List Active Holds for '||$v_levl||' Students in '||$v_coll_name||' with an '||$hold_code||' Hold'
+     end-if
+  else
+     if (length($v_levl)=0)
+        let $title='List All Students in '||$v_coll_name||' with an '||$hold_code||' Hold'
+     else
+        let $title='List '||$v_levl||' Students in '||$v_coll_name||' with an '||$hold_code||' Hold'
+     end-if
+  end-if
+
+end-procedure
+
+! -----------------------------------------------------------------------------
+begin-procedure get_db_type
+! -----------------------------------------------------------------------------
+begin-select
+value &db_type
+  let $db_type = &db_type
+  show 'database: ' $db_type
+ from sys.v_$parameter
+where name = 'db_name'
+end-select
+end-procedure
+
+! -----------------------------------------------------------------------------
+begin-procedure get_user
+! -----------------------------------------------------------------------------
+begin-select
+username
+   move &username to $user
+ from v$session
+where username = user
+end-select
+end-procedure
+
+! -----------------------------------------------------------------------
+begin-procedure process_records
+! -----------------------------------------------------------------------------
+	begin-select
+spriden_pidm         &pidm
+spriden_id           &id
+spriden_last_name    &last_name
+spriden_first_name   &first_name
+spriden_mi           &mi
+sum(tbraccd_balance) &balance
+substr(swxcoll_full_name,1,30) &coll_name			! 04/30/14
+!to_char(sprhold_from_date,'DD-MON-YYYY')      &from_date
+	   move &pidm to #v_pidm				! 04/30/14
+	   do get_level
+	   if ($v_levl='') or (&level=$v_levl)			! 10/08/12-jhp
+	      let $name = substr(&last_name||', '||&first_name||' '||&mi,1,25)
+	      add 1 to #acct_cnt
+
+	      print &id       (+1,1)
+	      print $name     (,13)
+	      print &balance  (,101) edit 999,999.99
+	      print &level    (,42)
+	      print &stst     (,56)
+	      print &coll_name (,69)			! 04/30/14
+	      do getClass
+	      do get_fafsa
+	      if $allHolds = 'Y'
+		 do get_holds
+	      else
+		 do getSpecificHolds
+	      end-if
+	   end-if					! 10/08/12-jhp
+!   print &from_date (,75)
+from spriden, tbraccd, sprhold, sgbstdn a,swxcoll	! 04/30/14
+where sprhold_pidm = spriden_pidm
+  and sprhold_hldd_code = $hold_code
+  and sprhold_to_date >= sysdate
+  and tbraccd_pidm = sprhold_pidm
+  and spriden_change_ind is null
+  and spriden_entity_ind = 'P'
+  and a.sgbstdn_pidm =spriden_pidm			! 04/30/14
+  and a.sgbstdn_coll_code_1 like $v_coll_code		! 04/30/14
+  and a.sgbstdn_term_code_eff =				! 04/30/14 
+     (select max(b.sgbstdn_term_code_eff)		! 04/30/14
+      from sgbstdn b					! 04/30/14 
+      where a.sgbstdn_pidm = b.sgbstdn_pidm)		! 04/30/14 
+  and swxcoll_code=a.sgbstdn_coll_code_1 		! 04/30/14
+	
+group by spriden_pidm, spriden_id, spriden_last_name, spriden_first_name,
+  spriden_mi, sprhold_from_date,substr(swxcoll_full_name,1,30)
+order by lower(spriden_last_name), spriden_first_name
+end-select
+end-procedure
+
+! -----------------------------------------------------------------------------
+begin-procedure get_holds
+! -----------------------------------------------------------------------------
+  let #hold_amt = 0
+  let $from_date = ''
+  move 0 to #tmp_cnt
+begin-select
+sprhold_hldd_code    &holdG
+sprhold_amount_owed  &hold_amtG
+to_char(sprhold_from_date,'DD-MON-YYYY')      &from_dateG
+ let #hold_amt = &hold_amtG
+ let $from_date = &from_dateG
+
+  if #tmp_cnt = 0
+     print &holdG (,114)
+  else
+     print &level (+1,42)
+     print $class (,49)
+     print &fafsa (,64)
+     print &holdG (,114)
+  end-if
+  print #hold_amt (,119) edit 999,999.99
+  print $from_date (,132)
+  add 1 to #tmp_cnt
+     
+ from sprhold
+! 04/30/14   where sprhold_pidm = &pidm
+where sprhold_pidm = #v_pidm			! 04/30/14
+  and sprhold_to_date >= sysdate
+order by sprhold_hldd_code
+end-select
+  add #tmp_cnt to #hold_cnt 
+end-procedure
+
+! -----------------------------------------------------------------------------
+begin-procedure getSpecificHolds
+! -----------------------------------------------------------------------------
+  let #hold_amt = 0
+  let $from_date = ''
+  move 0 to #tmp_cnt
+begin-select
+sprhold_hldd_code    &hold
+sprhold_amount_owed  &hold_amt
+to_char(sprhold_from_date,'DD-MON-YYYY')      &from_date
+ let #hold_amt = &hold_amt
+ let $from_date = &from_date
+
+  if #tmp_cnt = 0
+     print &hold  (,114)
+  else
+     print $hold_code  (+1,114)
+     print &level (,42)
+     print &fafsa (,64)
+     print $class (,49)
+  end-if
+  print #hold_amt (,119) edit 999,999.99
+  print $from_date (,132)
+  add 1 to #tmp_cnt
+     
+ from sprhold
+! 04/30/14   where sprhold_pidm = &pidm
+where sprhold_pidm = #v_pidm			! 04/30/14
+  and sprhold_to_date >= sysdate
+  and sprhold_hldd_code = $hold_code
+order by sprhold_hldd_code
+end-select
+  add #tmp_cnt to #hold_cnt 
+end-procedure
+
+! -----------------------------------------------------------------------------
+begin-procedure get_level
+! -----------------------------------------------------------------------------
+begin-select
+sgbstdn_levl_code    &level
+sgbstdn_stst_code    &stst
+
+! 10/08/12  print &level    (,66)
+! 10/08/12  print &stst     (,91)
+! 10/08/12  from sgbstdn
+! 10/08/12  where sgbstdn_pidm = &pidm
+! 10/08/12  and sgbstdn_term_code_eff = (select max(sgbstdn_term_code_eff) from sgbstdn
+! 10/08/12  where sgbstdn_pidm = &pidm)
+     
+from sgbstdn a					! 10/08/12
+! 04/30/14   where a.sgbstdn_pidm = &pidm	! 10/08/12
+where a.sgbstdn_pidm = #v_pidm			! 04/30/12 
+and a.sgbstdn_term_code_eff =			! 10/08/12 
+  (select max(b.sgbstdn_term_code_eff)		! 10/08/12
+   from sgbstdn b				! 10/08/12
+   where a.sgbstdn_pidm = b.sgbstdn_pidm)	! 10/08/12
+
+end-select
+end-procedure
+
+
+! -----------------------------------------------------------------------------
+begin-procedure get_fafsa
+! -----------------------------------------------------------------------------
+begin-select
+robusdf_value_29     &fafsa
+
+  print &fafsa    (,64)
+     
+ from robusdf
+! 04/30/14   where robusdf_pidm = &pidm
+where robusdf_pidm = #v_pidm			! 04/30/14
+  and robusdf_aidy_code = $aidy_code
+end-select
+end-procedure
+
+! -----------------------------------------------------------------------------
+begin-procedure getClass
+! -----------------------------------------------------------------------------
+ let $class = 0
+begin-select
+swxclas_code
+ let $class = edit(&swxclas_code, '00')
+ print $class (,49)
+from  swxclas
+! 04/30/14   where swxclas_code = swf_clas_calc(&pidm, $termCode)
+where swxclas_code = swf_clas_calc(#v_pidm, $termCode)		! 04/30/14
+end-select
+end-procedure
+
+! -----------------------------------------------------------------------------
+begin-procedure specify_college 
+! -----------------------------------------------------------------------------
+! Display all active names for user and prompt him/her to pick
+!
+	show clear-screen
+	   (3,10) bold 'Code                             College' normal
+	   (+1,10) '----   ------------------------------------------------------------'
+
+	begin-select
+swxcoll_code &code
+swxcoll_full_name &full_name_display
+	   show (+1,11) &code 
+	   show (,17) &full_name_display
+	   from swxcoll
+	   where swxcoll_email_address is not null and
+	      swxcoll_code <> '00'
+	   order by swxcoll_full_name
+	end-select
+
+	show ' '
+	show ' '
+	input $v_coll_code '          Enter college code, or <return> to include all colleges'
+	if (length($v_coll_code)=0)
+	   let $v_coll_code='%'
+	   let $v_coll_name='All Colleges'
+	else
+	   begin-select				! load college name for report title
+swxcoll_full_name &full_name_print
+	      move &full_name_print to $v_coll_name
+	      from swxcoll
+	      where swxcoll_code=$v_coll_code
+	   end-select
+	end-if
+	end-procedure
+
+! -----------------------------------------------------------------------
+begin-procedure process_records_no_sgbstdn
+! -----------------------------------------------------------------------------
+! As ugly as this is, I couldn't find a better way to capture students with no
+! record in SGBSTDN
+
+	begin-select
+spriden_pidm         &ns_pidm
+spriden_id           &ns_id
+spriden_last_name    &ns_last_name
+spriden_first_name   &ns_first_name
+spriden_mi           &ns_mi
+sum(tbraccd_balance) &ns_balance
+	   move &ns_pidm to #v_pidm
+	   let $ns_name = substr(&ns_last_name||', '||&ns_first_name||' '||&ns_mi,1,25)
+	   add 1 to #acct_cnt
+
+	   print &ns_id       (+1,1)
+	   print $ns_name     (,13)
+	   print &ns_balance  (,101) edit 999,999.99
+	   if $allHolds = 'Y'
+	      do get_holds
+	   else
+	      do getSpecificHolds
+	   end-if
+from spriden, tbraccd, sprhold	
+where sprhold_hldd_code = $hold_code
+  and sprhold_to_date >= sysdate
+  and tbraccd_pidm = sprhold_pidm
+  and spriden_pidm=sprhold_pidm
+  and spriden_change_ind is null
+  and spriden_entity_ind = 'P'
+  and (not exists(select 'x' from sgbstdn where
+     sgbstdn_pidm=sprhold_pidm))
+	
+group by spriden_pidm, spriden_id, spriden_last_name, spriden_first_name,
+  spriden_mi, sprhold_from_date
+order by lower(spriden_last_name), spriden_first_name
+	end-select
+	end-procedure
+
+! end-of-file

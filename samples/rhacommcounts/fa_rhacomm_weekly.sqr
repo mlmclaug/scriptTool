@@ -1,0 +1,412 @@
+! RHACOMM Reporting
+!   Phone and In-person counts by counselor by day.  
+!     This version runs one week at a time. 
+!     GET: 7/19/2016
+
+	#include '/u01/app/banner8/banuvm/links/sfs_sqr_utilities.sqr'
+	begin-setup
+	page-size 58 110
+		#define couns_col		1
+		#define date1_ph_col	15  
+		#define date1_ip_col	21
+		#define date2_ph_col	29
+		#define date2_ip_col	35
+		#define date3_ph_col	43
+		#define date3_ip_col	49
+		#define date4_ph_col	57
+		#define date4_ip_col	63
+		#define date5_ph_col	71
+		#define date5_ip_col	77
+		#define c_tot_ph_col	85
+		#define c_tot_ip_col	91
+	end-setup
+
+	begin-heading 6
+	   print $title1 (1,1) 
+	   print $title2 (2,1) 
+       print $pr_date1  (4,15)
+	   print $pr_date2 	(4,29)
+	   print $pr_date3 	(4,43)
+	   print $pr_date4 	(4,57)
+	   print $pr_date5 	(4,71)
+	   print 'TOTAL'	(4,87)
+
+      !      0        10        20        30        40        50        60        70        80        90        100       110       120       130       140       150       160                           
+      !      123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 
+	   print 'Counselor     Phon  In P    Phon  In P    Phon  In P    Phon  In P    Phon  In P    Phon  In P ' (5,1)  
+	   print '==========    ====  ====    ====  ====    ====  ====    ====  ====    ====  ====    ====  ====' (6,1)
+	end-heading
+
+		
+	begin-program
+		do init_routine
+		do get_parms
+		do get_dates
+		do get_counselors
+		do print_counts
+	end-program
+
+! -----------------------------------------------------------------------
+begin-procedure init_routine
+! -----------------------------------------------------------------------
+  let $uvm_date = edit($current-date, 'DD-MON-YYYY')
+  let $uvm_time = edit($current-date, 'HH:MIPM')
+  do get_dates
+  let $pr_date1 = edit($date1, 'DD-Mon-YY') 
+  let $pr_date2 = edit($date2, 'DD-Mon-YY')
+  let $pr_date3 = edit($date3, 'DD-Mon-YY')
+  let $pr_date4 = edit($date4, 'DD-Mon-YY')
+  let $pr_date5 = edit($date5, 'DD-Mon-YY')
+  do get_user($user)
+  do get_db_type
+
+end-procedure
+
+! -----------------------------------------------------------------------
+begin-procedure get_db_type
+! -----------------------------------------------------------------------
+begin-select
+value  &db_type
+  let $db_type = &db_type
+  show '  db: ' $db_type
+ from sys.v_$parameter
+where name = 'db_name'
+end-select
+end-procedure
+
+! -----------------------------------------------------------------------
+begin-procedure get_parms
+! -----------------------------------------------------------------------
+  input $aid_yr 'Enter Aid Year (1617) '
+  
+  let $title1 = 'Last weeks RHACOMM counts by counselor.' 
+  let $title2 = $uvm_date || ' ' || $uvm_time || ' ' || $db_type 
+  let #records = 0
+  end-procedure
+
+! -----------------------------------------------------------------------
+begin-procedure get_dates
+! -----------------------------------------------------------------------
+! always run starting last Monday
+	begin-select
+to_char(sysdate, 'd') &day_of_week
+	move &day_of_week to #day_of_week
+	let #sub_days = (#day_of_week + 5) * -1
+
+	from dual 
+	end-select
+	let $date0 = dateadd($current-date, 'day', #sub_days - 1)
+	let $date1 = dateadd($current-date, 'day', #sub_days)
+	let $date2 = dateadd($current-date, 'day', #sub_days + 1)
+	let $date3 = dateadd($current-date, 'day', #sub_days + 2)
+	let $date4 = dateadd($current-date, 'day', #sub_days + 3)
+	let $date5 = dateadd($current-date, 'day', #sub_days + 4)
+	let $date6 = dateadd($current-date, 'day', #sub_days + 5)
+	
+end-procedure
+
+! ================================================================================
+ begin-procedure define_array
+! ================================================================================
+create-array name=rhacomm size=100
+	field = counselor:char
+	field = date1_ph:number
+	field = date1_ip:number
+	field = date2_ph:number
+	field = date2_ip:number
+	field = date3_ph:number
+	field = date3_ip:number
+	field = date4_ph:number
+	field = date4_ip:number
+	field = date5_ph:number
+	field = date5_ip:number
+	field = couns_tot_ph:number
+	field = couns_tot_ip:number
+
+	end-procedure
+	
+! ================================================================================
+  begin-procedure get_counselors
+! ================================================================================
+let #rha_idx = 0
+begin-select
+distinct rhrcomm_user_id &counselor
+
+	move &counselor to $counselor
+	
+	put $counselor into rhacomm(#rha_idx) counselor
+	do get_ph_counts
+	do get_ip_counts
+	let #rha_idx = #rha_idx + 1	
+	
+	from rhrcomm
+	where (rhrcomm_category_code like 'P%'
+		or rhrcomm_category_code like 'I%')
+		and rhrcomm_activity_date between $date0 and $date6 
+	order by rhrcomm_user_id
+
+	end-select
+	end-procedure
+	
+! ================================================================================
+  begin-procedure get_ph_counts
+! ================================================================================
+	let #ph_count1 = 0 
+	let #ph_count2 = 0 
+	let #ph_count3 = 0 
+	let #ph_count4 = 0 
+	let #ph_count5 = 0 
+
+	! Date 1
+	begin-select
+count(rhrcomm_pidm) &ph_count1
+	move &ph_count1 to #ph_count1
+
+	from rhrcomm
+	where rhrcomm_category_code like 'P%'
+		and rhrcomm_user_id = $counselor
+		and trunc(rhrcomm_activity_date) = $date1
+	end-select
+
+! Date 2
+	begin-select
+count(rhrcomm_pidm) &ph_count2
+	move &ph_count2 to #ph_count2
+	
+	from rhrcomm
+	where rhrcomm_category_code like 'P%'
+		and rhrcomm_user_id = $counselor
+		and trunc(rhrcomm_activity_date) = $date2
+	end-select
+
+! Date 3
+	begin-select
+count(rhrcomm_pidm) &ph_count3
+	move &ph_count3 to #ph_count3
+
+	from rhrcomm
+	where rhrcomm_category_code like 'P%'
+		and rhrcomm_user_id = $counselor
+		and trunc(rhrcomm_activity_date) = $date3
+	end-select
+	
+! Date 4
+	begin-select
+count(rhrcomm_pidm) &ph_count4
+	move &ph_count4 to #ph_count4
+	
+	from rhrcomm
+	where rhrcomm_category_code like 'P%'
+		and rhrcomm_user_id = $counselor
+		and trunc(rhrcomm_activity_date) = $date4
+	end-select
+	
+! Date 5 
+	begin-select
+count(rhrcomm_pidm) &ph_count5
+	move &ph_count5 to #ph_count5
+	
+	from rhrcomm
+	where rhrcomm_category_code like 'P%'
+		and rhrcomm_user_id = $counselor
+		and trunc(rhrcomm_activity_date) = $date5
+	end-select
+
+	do load_ph_counts
+	end-procedure
+	
+	
+! ================================================================================
+ begin-procedure load_ph_counts
+! ================================================================================
+	let #rhacomm_idx = 0
+	let $get_council = 'First'
+	let #c_tot_ph = #ph_count1 + #ph_count2 + #ph_count3 + #ph_count4 + #ph_count5
+	
+	while $get_council <> ''
+		get $get_council from rhacomm(#rhacomm_idx) counselor
+			if $get_council = $counselor 
+				put #ph_count1 into rhacomm(#rhacomm_idx) date1_ph
+				put #ph_count2 into rhacomm(#rhacomm_idx) date2_ph
+				put #ph_count3 into rhacomm(#rhacomm_idx) date3_ph
+				put #ph_count4 into rhacomm(#rhacomm_idx) date4_ph
+				put #ph_count5 into rhacomm(#rhacomm_idx) date5_ph
+				put #c_tot_ph into rhacomm(#rhacomm_idx) couns_tot_ph
+				break
+			end-if
+		let #rhacomm_idx = #rhacomm_idx + 1
+	end-while
+
+	end-procedure
+! ================================================================================
+  begin-procedure get_ip_counts
+! ================================================================================
+	let #ip_count1 = 0 
+	let #ip_count2 = 0 
+	let #ip_count3 = 0 
+	let #ip_count4 = 0 
+	let #ip_count5 = 0 
+
+	! Date 1
+	begin-select
+count(rhrcomm_pidm) &ip_count1
+	move &ip_count1 to #ip_count1
+
+	from rhrcomm
+	where rhrcomm_category_code like 'I%'
+		and rhrcomm_user_id = $counselor
+		and trunc(rhrcomm_activity_date) = $date1
+	end-select
+
+! Date 2
+	begin-select
+count(rhrcomm_pidm) &ip_count2
+	move &ip_count2 to #ip_count2
+	
+	from rhrcomm
+	where rhrcomm_category_code like 'I%'
+		and rhrcomm_user_id = $counselor
+		and trunc(rhrcomm_activity_date) = $date2
+	end-select
+
+! Date 3
+	begin-select
+count(rhrcomm_pidm) &ip_count3
+	move &ip_count3 to #ip_count3
+
+	from rhrcomm
+	where rhrcomm_category_code like 'I%'
+		and rhrcomm_user_id = $counselor
+		and trunc(rhrcomm_activity_date) = $date3
+	end-select
+	
+! Date 4
+	begin-select
+count(rhrcomm_pidm) &ip_count4
+	move &ip_count4 to #ip_count4
+	
+	from rhrcomm
+	where rhrcomm_category_code like 'I%'
+		and rhrcomm_user_id = $counselor
+		and trunc(rhrcomm_activity_date) = $date4
+	end-select
+	
+! Date 5 
+	begin-select
+count(rhrcomm_pidm) &ip_count5
+	move &ip_count5 to #ip_count5
+	
+	from rhrcomm
+	where rhrcomm_category_code like 'I%'
+		and rhrcomm_user_id = $counselor
+		and trunc(rhrcomm_activity_date) = $date5
+	end-select
+
+	do load_ip_counts
+	end-procedure
+
+! ================================================================================
+ begin-procedure load_ip_counts
+! ================================================================================
+	let #rhacomm_idx = 0
+	let $get_council = 'First'
+	let #c_tot_ip = #ip_count1 + #ip_count2 + #ip_count3 + #ip_count4 + #ip_count5
+	
+	while $get_council <> ''
+		get $get_council from rhacomm(#rhacomm_idx) counselor
+			if $get_council = $counselor 
+				put #ip_count1 into rhacomm(#rhacomm_idx) date1_ip
+				put #ip_count2 into rhacomm(#rhacomm_idx) date2_ip
+				put #ip_count3 into rhacomm(#rhacomm_idx) date3_ip
+				put #ip_count4 into rhacomm(#rhacomm_idx) date4_ip
+				put #ip_count5 into rhacomm(#rhacomm_idx) date5_ip
+				put #c_tot_ip into rhacomm(#rhacomm_idx)couns_tot_ip
+				break
+			end-if
+		let #rhacomm_idx = #rhacomm_idx + 1
+	end-while
+
+	end-procedure
+	
+	
+	
+! -----------------------------------------------------------------------
+begin-procedure print_counts
+! -----------------------------------------------------------------------	
+	let #print_idx = 0
+	let #gt_date1_ph = 0
+	let #gt_date1_ip = 0
+	let #gt_date2_ph = 0
+	let #gt_date2_ip = 0
+	let #gt_date3_ph = 0
+	let #gt_date3_ip = 0
+	let #gt_date4_ph = 0
+	let #gt_date4_ip = 0
+	let #gt_date5_ph = 0
+	let #gt_date5_ip = 0
+	let #gt_tot_ph = 0 
+	let #gt_tot_ip = 0
+	
+	while #print_idx < #rha_idx 
+			
+		get $counselor from rhacomm(#print_idx) counselor
+		get #date1_ph from rhacomm(#print_idx) date1_ph
+		get #date1_ip from rhacomm(#print_idx) date1_ip
+		get #date2_ph from rhacomm(#print_idx) date2_ph
+		get #date2_ip from rhacomm(#print_idx) date2_ip
+		get #date3_ph from rhacomm(#print_idx) date3_ph
+		get #date3_ip from rhacomm(#print_idx) date3_ip
+		get #date4_ph from rhacomm(#print_idx) date4_ph
+		get #date4_ip from rhacomm(#print_idx) date4_ip
+		get #date5_ph from rhacomm(#print_idx) date5_ph
+		get #date5_ip from rhacomm(#print_idx) date5_ip
+		get #cou_tot_ph from rhacomm(#print_idx) couns_tot_ph
+		get #cou_tot_ip from rhacomm(#print_idx) couns_tot_ip
+		
+		let #gt_date1_ph = #gt_date1_ph + #date1_ph
+		let #gt_date1_ip = #gt_date1_ip + #date1_ip
+		let #gt_date2_ph = #gt_date2_ph + #date2_ph
+		let #gt_date2_ip = #gt_date2_ip + #date2_ip
+		let #gt_date3_ph = #gt_date3_ph + #date3_ph
+		let #gt_date3_ip = #gt_date3_ip + #date3_ip
+		let #gt_date4_ph = #gt_date4_ph + #date4_ph
+		let #gt_date4_ip = #gt_date4_ip + #date4_ip
+		let #gt_date5_ph = #gt_date5_ph + #date5_ph
+		let #gt_date5_ip = #gt_date5_ip + #date5_ip
+		let #gt_tot_ph = #gt_tot_ph + #cou_tot_ph
+		let #gt_tot_ip = #gt_tot_ip + #cou_tot_ip
+		
+		
+			
+			
+		print $counselor			(+1,{couns_col}) 
+		print #date1_ph				(0,{date1_ph_col}) edit '999'
+		print #date1_ip				(0,{date1_ip_col}) edit '999'
+		print #date2_ph				(0,{date2_ph_col}) edit '999'
+		print #date2_ip				(0,{date2_ip_col}) edit '999'
+		print #date3_ph				(0,{date3_ph_col}) edit '999'
+		print #date3_ip				(0,{date3_ip_col}) edit '999'
+		print #date4_ph				(0,{date4_ph_col}) edit '999'
+		print #date4_ip				(0,{date4_ip_col}) edit '999'
+		print #date5_ph				(0,{date5_ph_col}) edit '999'
+		print #date5_ip				(0,{date5_ip_col}) edit '999'
+		print #cou_tot_ph			(0,{c_tot_ph_col}) edit '999'
+		print #cou_tot_ip			(0,{c_tot_ip_col}) edit '999'	
+		let #print_idx = #print_idx + 1
+	end-while
+			
+		print 'DAY TOTAL'			(+1,{couns_col}) 
+		print #gt_date1_ph			(0,{date1_ph_col}) edit '999'
+		print #gt_date1_ip			(0,{date1_ip_col}) edit '999'
+		print #gt_date2_ph			(0,{date2_ph_col}) edit '999'
+		print #gt_date2_ip			(0,{date2_ip_col}) edit '999'
+		print #gt_date3_ph			(0,{date3_ph_col}) edit '999'
+		print #gt_date3_ip			(0,{date3_ip_col}) edit '999'
+		print #gt_date4_ph			(0,{date4_ph_col}) edit '999'
+		print #gt_date4_ip			(0,{date4_ip_col}) edit '999'
+		print #gt_date5_ph			(0,{date5_ph_col}) edit '999'
+		print #gt_date5_ip			(0,{date5_ip_col}) edit '999'
+		print #gt_tot_ph 			(0,{c_tot_ph_col}) edit '999'
+		print #gt_tot_ip			(0,{c_tot_ip_col}) edit '999'
+			
+	end-procedure
