@@ -129,11 +129,28 @@ abstract class ScriptTool  extends groovy.lang.Script {
 	    // Note: no input validation is performed on items specified on the command line.  
 	    // we assume you know what you are doing.
 		String r
+		boolean isOK = false
 
 		if (parmbuf) {
 		    // found item in the buffer... run with it.
 		    r =  parmbuf[0]
 		    parmbuf = parmbuf.drop(1)
+
+			if (!r && dflt){ r = dflt}
+
+			// Run any validations on the input... if fails abort program.
+			isOK = true
+			if (validations ){
+				validations.each { v -> 
+					_transformer_buffer = r
+					isOK = isOK && v(r)
+					if (_transformer_buffer != r) {r = _transformer_buffer}
+				 }
+			}
+			if ( !isOK ){
+				System.exit(1);
+			}
+
 		}else{
 		    // here we are prompting the user for input.
 		    // prompt until all validations are satisfied.
@@ -147,7 +164,7 @@ abstract class ScriptTool  extends groovy.lang.Script {
 				p1 = p + prompt_suffix
 			}  
 
-			boolean isOK = false
+			isOK = false
 			while ( !isOK ) {
 				isOK = true
 				r = prompt(p1)
@@ -237,7 +254,7 @@ m = os_exec(String cmd) - executes an os command and returns a map.
                   m.returnValue - return code, 0 if ok
                   m.serr - string containing any errors sent to stderr
                   m.sout - string containing the output sent to stdout
-                  
+
 connect(dbc)	   - connect to a database using the same dbc syntax  
 connect(dbc,true)    described above.   Add 'true' to -enableBanner
 
