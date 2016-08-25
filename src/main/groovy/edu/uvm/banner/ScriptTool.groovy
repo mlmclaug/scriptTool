@@ -21,6 +21,8 @@ package edu.uvm.banner;
 import groovy.sql.Sql;
 import java.sql.*;
 import edu.uvm.banner.general.reporter.*;
+import java.util.Locale;
+
 
 abstract class ScriptTool  extends groovy.lang.Script {
 	Sql sql           // Groovy Sql object, connected to Database & banner security has been applied.
@@ -32,9 +34,10 @@ abstract class ScriptTool  extends groovy.lang.Script {
     def tr  = [:]     // map of translation methods
     // Internal State variables:
 	boolean verbose = false  //turned on by -verbose flag.. prints additional info about what is happening.
-	String[] parmbuf;  //buffer to hold user input parameters entered on the commandline. 
+	private String[] parmbuf;  //buffer to hold user input parameters entered on the commandline. 
 						//get's drained by Input method.
-	String _transformer_buffer = '' //Do Not Use - Property is transient, used during input transformations.
+	private String _transformer_buffer = '' //Do Not Use - Property is transient, used during input transformations.
+
     // Optional provided Input Validations.  
     // Each validation returns true is input is ok.  
     //  False if not.  When false, prints a (hopefully) helpful error message.
@@ -226,6 +229,11 @@ email(Map settings).send()
 tr_input(closure) - generates a ck constraint that can transform/modify
     a users input. For instance tr_input(tr.ucase) can be used to convert
     user input into upper case.
+
+m = os_exec(String cmd) - executes an os command and returns a map.
+                  m.returnValue - return code, 0 if ok
+                  m.serr - string containing any errors sent to stderr
+                  m.sout - string containing the output sent to stdout
 
 '''
 	}
@@ -446,6 +454,66 @@ tr_input(closure) - generates a ck constraint that can transform/modify
 		// and returns modified user input.. i.e convert to upper case.
 		ck.transform.rcurry(transformer) 
 	}
+	/**
+	 * helper class to check the operating system this Java VM runs in
+	 * please keep the notes below as a pseudo-license
+	 * http://stackoverflow.com/questions/228477/how-do-i-programmatically-determine-operating-system-in-java
+	 * compare to http://svn.terracotta.org/svn/tc/dso/tags/2.6.4/code/base/common/src/com/tc/util/runtime/Os.java
+	 * http://www.docjar.com/html/api/org/apache/commons/lang/SystemUtils.java.html
+	 */
+	  /** types of Operating Systems  */
+	  public enum OSType { Windows, MacOS, Linux, Other };
+
+	  // cached result of OS detection
+	  protected static OSType detectedOS;
+
+	  /**
+	   * detect the operating system from the os.name System property and cache
+	   * the result
+	   * 
+	   * @returns - the operating system detected
+	   */
+	  public static OSType getOperatingSystemType() {
+	    if (detectedOS == null) {
+	      String OS = System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH);
+	      if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
+	        detectedOS = OSType.MacOS;
+	      } else if (OS.indexOf("win") >= 0) {
+	        detectedOS = OSType.Windows;
+	      } else if (OS.indexOf("nux") >= 0) {
+	        detectedOS = OSType.Linux;
+	      } else {
+	        detectedOS = OSType.Other;
+	      }
+	    }
+	    return detectedOS;
+	  }
+
+	Map os_exec (String cmd){
+		println 'String = ' + cmd
+		List c = OSType.Windows == getOperatingSystemType() ? ['cmd' , '/c', cmd] : ['sh' , '-c', cmd]
+		println c
+		return os_exec (c)
+	}
+
+	Map os_exec (def cmd){
+		// Can be called with a string or list (anything w/ a .execute())
+		// Note to get commands and globing provided by the shell use
+		// list w/ sh -c or cmd /c depending on your howt platform. 
+		println cmd
+		Map r = [:]
+		def sout = new StringBuilder()
+		def serr = new StringBuilder()
+		def proc = cmd.execute(null, new File("."))
+		proc.consumeProcessOutput(sout, serr)
+		proc.waitFor()
+
+		r.exitValue = proc.exitValue()
+		r.sout = sout.toString()
+		r.serr = serr.toString()
+		return r
+	}
+
 
 // Banner Security for Object... do I have permission to execute this object?
 private static String setBanSecr = '''
