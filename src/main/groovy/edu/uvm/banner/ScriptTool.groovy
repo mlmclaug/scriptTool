@@ -34,6 +34,7 @@ abstract class ScriptTool  extends groovy.lang.Script {
     def tr  = [:]     // map of translation methods
     // Internal State variables:
 	boolean verbose = false  //turned on by -verbose flag.. prints additional info about what is happening.
+	boolean dobannersecurity = false  //turned on by -enableBanner flag on command line
 	private String[] parmbuf;  //buffer to hold user input parameters entered on the commandline. 
 						//get's drained by Input method.
 	private String _transformer_buffer = '' //Do Not Use - Property is transient, used during input transformations.
@@ -187,6 +188,8 @@ dbc = the database connection information such as the following:
       /, /@prod, joe@aist, 
       or joe@jdbc:oracle:thin:@ldap://ldap.uvm.edu:389/AIST, CN=...
       If the userid or password is not supplied, they will be prompted for.
+      If dbc = -nodb - no database will be connected to. See deferred db 
+      		connection below.
 
 -enableBanner = if specified, banner security checking and banner role 
                 elevation will be performed.
@@ -234,16 +237,23 @@ m = os_exec(String cmd) - executes an os command and returns a map.
                   m.returnValue - return code, 0 if ok
                   m.serr - string containing any errors sent to stderr
                   m.sout - string containing the output sent to stdout
+                  
+connect(dbc)	   - connect to a database using the same dbc syntax  
+connect(dbc,true)    described above.   Add 'true' to -enableBanner
 
 '''
 	}
-	Map getDBConnectionInfo(){
+	Map getDBConnectionInfo(String dbcOverride = null){
 	// Gets a map of the database connection info 
-	// Uses arg[0] from the comand line and/or defaults from the environment.
+	// Uses arg[0] from the command line and/or defaults from the environment.
 	// expected formats are one of the following:
 	//         ['/@prod', '/', 'mlm@aist', 'mlm/secret@jdbc:oracle:thin:@ldap://joes/garage/BANUPG', '']
 	 Map res = [:]
-	 dbc = args.size()>0 ? args[0] : ''
+	 if (dbcOverride != null){
+		dbc = dbcOverride
+	 } else{
+		dbc = args.size()>0 ? args[0] : ''
+	 }
 	 // -verbose or -enableBanner or -F is expected to be after the connection info..
 	 // if it's first on the command line then assume connection info not provided.
 	 if ( dbc == '-verbose' || dbc == '-enableBanner' || dbc =~ /^-F/ ){dbc = ''}
@@ -254,10 +264,13 @@ m = os_exec(String cmd) - executes an os command and returns a map.
 		res = [uid : '', pwd : '' 
 			,url : getURL_OCI( v.size() > 1 ? v[1] : '')
 			,scriptnm : getScriptName() ]
+	} else if ( '-NODB' == v[0].toUpperCase() ) {
+		res = [uid : '', pwd : '', url : null
+			, scriptnm : getScriptName()  ]
 	} else{
 		res = [uid : getUserID(v[0]), pwd : getPassword(v[0])
-			,url : getURL_THIN( v.size() > 1 ? v[1] : '')
-			,scriptnm : getScriptName()  ]
+			, url : getURL_THIN( v.size() > 1 ? v[1] : '')
+			, scriptnm : getScriptName()  ]
 	}
 	res
 	}
@@ -335,34 +348,39 @@ m = os_exec(String cmd) - executes an os command and returns a map.
 
 	void openDBConnection(Map dbc) {
 		//dbc = Map [uid, pwd, url, scriptnm]
-		dbgShow "Open Connection to Database and set dbname and username."
-	    def loglvl = Sql.LOG.level
-	    try{
-	    	Sql.LOG.level = java.util.logging.Level.SEVERE
-			sql = Sql.newInstance(dbc.url, dbc.uid, dbc.pwd, "oracle.jdbc.OracleDriver")
-	    	}catch(SQLException e){
-	    		println "Datbase Connection failed.\n" + e.getMessage()
-	    		System.exit(1);
-	    	}
-	    Sql.LOG.level = loglvl
-
-		dbname = sql.firstRow("select value from sys.v_\$parameter where name = 'db_name'").value
-		username = sql.firstRow("select user from user_users").user
-
-	    // if -enableBanner then do banner security checking/privledge elevating
-	    if (args.any { it == '-enableBanner'}){
-			// Set Banner Secutity - prints message if not permitted and security is not elevated.
-			// Reduce log level to hide security code being executed when error is thrown
-			dbgShow "Setting Banner secuity."
-		    loglvl = Sql.LOG.level
+		if (dbc.url != null){
+			dbgShow "Open Connection to Database and set dbname and username."
+		    def loglvl = Sql.LOG.level
 		    try{
 		    	Sql.LOG.level = java.util.logging.Level.SEVERE
-		    	sql.call(setBanSecr, [dbc.scriptnm.toUpperCase()])
+				sql = Sql.newInstance(dbc.url, dbc.uid, dbc.pwd, "oracle.jdbc.OracleDriver")
 		    	}catch(SQLException e){
-		    		println "WARNING: Banner Security not enabled on this object.\n" + e.getMessage()
+		    		println "Datbase Connection failed.\n" + e.getMessage()
 		    		System.exit(1);
 		    	}
 		    Sql.LOG.level = loglvl
+
+			dbname = sql.firstRow("select value from sys.v_\$parameter where name = 'db_name'").value
+			username = sql.firstRow("select user from user_users").user
+
+		    // if -enableBanner then do banner security checking/privledge elevating
+		    //if (args.any { it == '-enableBanner'}){
+		    if (dobannersecurity){
+				// Set Banner Secutity - prints message if not permitted and security is not elevated.
+				// Reduce log level to hide security code being executed when error is thrown
+				dbgShow "Setting Banner secuity."
+			    loglvl = Sql.LOG.level
+			    try{
+			    	Sql.LOG.level = java.util.logging.Level.SEVERE
+			    	sql.call(setBanSecr, [dbc.scriptnm.toUpperCase()])
+			    	}catch(SQLException e){
+			    		println "WARNING: Banner Security not enabled on this object.\n" + e.getMessage()
+			    		System.exit(1);
+			    	}
+			    Sql.LOG.level = loglvl
+			}
+		} else {
+			dbgShow "No Database, connection deferred."
 		}
 	}
 
@@ -490,9 +508,9 @@ m = os_exec(String cmd) - executes an os command and returns a map.
 	  }
 
 	Map os_exec (String cmd){
-		println 'String = ' + cmd
+		// Execute an OS level command. inserting OS shell so shell 
+		// provided commands and glob expansion works.
 		List c = OSType.Windows == getOperatingSystemType() ? ['cmd' , '/c', cmd] : ['sh' , '-c', cmd]
-		println c
 		return os_exec (c)
 	}
 
@@ -500,7 +518,6 @@ m = os_exec(String cmd) - executes an os command and returns a map.
 		// Can be called with a string or list (anything w/ a .execute())
 		// Note to get commands and globing provided by the shell use
 		// list w/ sh -c or cmd /c depending on your howt platform. 
-		println cmd
 		Map r = [:]
 		def sout = new StringBuilder()
 		def serr = new StringBuilder()
@@ -513,7 +530,12 @@ m = os_exec(String cmd) - executes an os command and returns a map.
 		r.serr = serr.toString()
 		return r
 	}
-
+    void connect(String dbconnectstring, boolean dobansecur = false){
+    	dobannersecurity = dobansecur
+        Map dbc = getDBConnectionInfo(dbconnectstring)
+        disp_dbc(dbc)
+        openDBConnection(dbc)
+    }
 
 // Banner Security for Object... do I have permission to execute this object?
 private static String setBanSecr = '''
@@ -574,6 +596,7 @@ end;
 	 
 	private void initialize() {
 		verbose =  args.any { it == '-verbose'}
+		dobannersecurity = args.any { it == '-enableBanner'}
 		dbgShow '>Initializing state.'
 		dbgShow "Arguments: ${args}"
 		parmbuf = fetchParmBuffer()
