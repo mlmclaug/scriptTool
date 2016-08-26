@@ -5,16 +5,18 @@ ScriptTool provides groovy scripts with the following.
 (1) A database connection that optionally applies Banner security
 (2) A reporting object to simplify the generation of tabular reports.
 (3) Collect runtime parameters. Will collect from the command line or prompt.
-     when prompting, various check constraints can be applied to the user input.
+     Various check constraints can be applied to the user input.
 (4) Provide some commonly used convenience variables and methods.
      dbname, username, and tr (translation routines)
+(5) Read/Parse csv files.
+(6) Generate and send email.
+(7) Execute OS Commands
 
 TODO: 
 (*) Integrate w/ Banner Jobsub oneup (and optionally retain oneup values in the database)???
 (*) Indentify and define additional common input constraints.
 (*) Indentify and define additional common translation methods.
 (*) Banner population maintenance
-(*) get any hard coded properties from a external properties file or environment.
 
 */
 package edu.uvm.banner;
@@ -120,7 +122,6 @@ abstract class ScriptTool  extends groovy.lang.Script {
 			input.toUpperCase()
 		}
 	}
-
 
 	String input(String p, String dflt='',Closure... validations ){
 	    // Routine to prompt user for a parameter.. 
@@ -279,15 +280,12 @@ connect(dbc,true)    described above.   Add 'true' to -enableBanner
 	 
 	if ( v[0] == '/') {
 		res = [uid : '', pwd : '' 
-			,url : getURL_OCI( v.size() > 1 ? v[1] : '')
-			,scriptnm : getScriptName() ]
+			,url : getURL_OCI( v.size() > 1 ? v[1] : '')]
 	} else if ( '-NODB' == v[0].toUpperCase() ) {
-		res = [uid : '', pwd : '', url : null
-			, scriptnm : getScriptName()  ]
+		res = [uid : '', pwd : '', url : null]
 	} else{
 		res = [uid : getUserID(v[0]), pwd : getPassword(v[0])
-			, url : getURL_THIN( v.size() > 1 ? v[1] : '')
-			, scriptnm : getScriptName()  ]
+			, url : getURL_THIN( v.size() > 1 ? v[1] : '')]
 	}
 	res
 	}
@@ -369,8 +367,9 @@ connect(dbc,true)    described above.   Add 'true' to -enableBanner
 			dbgShow "Open Connection to Database and set dbname and username."
 		    def loglvl = Sql.LOG.level
 		    try{
+		    	String drivername = System.getenv('ORACLE_DRIVER') ?: 'oracle.jdbc.OracleDriver'  
 		    	Sql.LOG.level = java.util.logging.Level.SEVERE
-				sql = Sql.newInstance(dbc.url, dbc.uid, dbc.pwd, "oracle.jdbc.OracleDriver")
+				sql = Sql.newInstance(dbc.url, dbc.uid, dbc.pwd, drivername)
 		    	}catch(SQLException e){
 		    		println "Datbase Connection failed.\n" + e.getMessage()
 		    		System.exit(1);
@@ -385,11 +384,13 @@ connect(dbc,true)    described above.   Add 'true' to -enableBanner
 		    if (dobannersecurity){
 				// Set Banner Secutity - prints message if not permitted and security is not elevated.
 				// Reduce log level to hide security code being executed when error is thrown
-				dbgShow "Setting Banner secuity."
+				String scriptnm = getScriptName().toUpperCase()
+				dbgShow "Setting Banner secuity on ${scriptnm}."
 			    loglvl = Sql.LOG.level
 			    try{
 			    	Sql.LOG.level = java.util.logging.Level.SEVERE
-			    	sql.call(setBanSecr, [dbc.scriptnm.toUpperCase()])
+			    	sql.call(BannerSecurity.setBanSecr, 
+			    		[BannerSecurity.seed1, BannerSecurity.seed3, scriptnm])
 			    	}catch(SQLException e){
 			    		println "WARNING: Banner Security not enabled on this object.\n" + e.getMessage()
 			    		System.exit(1);
@@ -418,7 +419,7 @@ connect(dbc,true)    described above.   Add 'true' to -enableBanner
 		if (verbose){println msg}
 	}
 	void disp_dbc(Map dbc){
-		dbgShow "Connection Info: user= ${dbc.uid}, password= ${'-'.multiply(dbc.pwd.size())}   object: ${dbc.scriptnm}"
+		dbgShow "Connection Info: user= ${dbc.uid}, password= ${'-'.multiply(dbc.pwd.size())}"
 		dbgShow "            url: ${dbc.url}"
 	}
 	String[] fetchParmBuffer(){
@@ -553,45 +554,6 @@ connect(dbc,true)    described above.   Add 'true' to -enableBanner
         disp_dbc(dbc)
         openDBConnection(dbc)
     }
-
-// Banner Security for Object... do I have permission to execute this object?
-private static String setBanSecr = '''
-declare
-  hold_cmd  varchar2(240);
-  object    varchar2(30);
-  version   varchar2(10);
-  password  varchar2(30);
-  role_name varchar2(30);
-  password_out  varchar2(30);
-  seed1     number(8) := 96822688;
-  seed3     number(8) := 25348998;
-
-begin
-  object     :=  :sql_setrole_object;   
---! Next line is for testing only
---  object     :=  'SHRTRTC';
---  object     :=  'TWPDOCL';
-  version    :=  '1.0';
-
-  G$_SECURITY.G$_VERIFY_PASSWORD1_PRD(object, version,
-                                      password, role_name);
-  IF PASSWORD = 'INSECURED' THEN
-      RETURN;
-  END IF;
-
-  password_out :=G$_SECURITY.G$_DECRYPT_FNC(PASSWORD, seed3);
-
-  G$_SECURITY.G$_VERIFY_PASSWORD1_PRD(object, version,
-                                      password_out, role_name);
-  password_out := G$_SECURITY.G$_DECRYPT_FNC(password_out, seed1);
-
-  PASSWORD := '"' || PASSWORD_OUT  || '"';
-  HOLD_CMD := ROLE_NAME || ' IDENTIFIED BY ' || PASSWORD;
-  PASSWORD := ' '; seed1    := 0; seed3    := 0;
-
-  DBMS_SESSION.SET_ROLE(HOLD_CMD);
-end;
-'''
 
 	def run() {
 		initialize()
