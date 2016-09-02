@@ -281,7 +281,8 @@ connect(dbc,true)    described above.   Add 'true' to -enableBanner
 	if ( v[0] == '/') {
 		res = [uid : '', pwd : '' 
 			,url : getURL_OCI( v.size() > 1 ? v[1] : '')]
-	} else if ( '-NODB' == v[0].toUpperCase() ) {
+	} else if ( '-NODB'  == v[0].toUpperCase() ||
+				'/NOLOG' == v[0].toUpperCase() ) {
 		res = [uid : '', pwd : '', url : null]
 	} else{
 		res = [uid : getUserID(v[0]), pwd : getPassword(v[0])
