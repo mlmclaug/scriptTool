@@ -11,12 +11,12 @@ ScriptTool provides groovy scripts with the following.
 (5) Read/Parse csv files.
 (6) Generate and send email.
 (7) Execute OS Commands
+(8) Bind to service classes via serviceFactory()
 
 TODO: 
 (*) Integrate w/ Banner Jobsub oneup (and optionally retain oneup values in the database)???
 (*) Indentify and define additional common input constraints.
 (*) Indentify and define additional common translation methods.
-(*) Banner population maintenance
 
 */
 package edu.uvm.banner;
@@ -120,6 +120,9 @@ abstract class ScriptTool  extends groovy.lang.Script {
 		}
 		tr['ucase'] = {input -> 
 			input.toUpperCase()
+		}
+		tr['findstudent'] = {studentID -> 
+			sql.firstRow('select uvmfrm_utl.findStudentBySomeID(?) pidm from dual',[studentID]).pidm
 		}
 	}
 
@@ -258,6 +261,17 @@ m = os_exec(String cmd) - executes an os command and returns a map.
 
 connect(dbc)	   - connect to a database using the same dbc syntax  
 connect(dbc,true)    described above.   Add 'true' to -enableBanner
+
+serviceFactory(class_name {, constructor_args})
+	i.e:
+	c = serviceFactory(edu.uvm.banner.Population)
+	c = serviceFactory(edu.uvm.banner.Population, [p1:'aaa',p2:'bbb'])
+	c = serviceFactory(edu.uvm.banner.Population, ['aaa','bbb']  as Object[])
+
+	serviceFactory instantiates an instance of a class and adds a 'script' 
+	property. The script property makes all the script properties and methods 
+	available for use in to the service class.
+	The service class can now call:  script.sql ... script.username  etc...
 
 '''
 	}
@@ -555,6 +569,12 @@ connect(dbc,true)    described above.   Add 'true' to -enableBanner
         disp_dbc(dbc)
         openDBConnection(dbc)
     }
+
+	Object serviceFactory( Object cl, def constructormap = [:]){
+	    def c =  cl.newInstance(constructormap)
+	    c.metaClass.getScript =  { -> this }     
+	    return c
+	}
 
 	def run() {
 		initialize()
