@@ -14,7 +14,10 @@ class Population{
 	String selection
 	String creator
 	String user
+	// Parent properties.. if need to create population
 	String descr = 'Loaded via Scripttool'
+	String lock_ind = null
+	String type_ind = 'S'
 
 	// internal flag.. first time we insert to a population
 	// do make sure master record exists to make population visible
@@ -70,8 +73,7 @@ class Population{
 
 		if ( doInitProcessing ){
 			// make sure parent record exists.. if not add it
-			String found = sql.firstRow(qry_doesMasterExist, this)?.found
-			if ('Y' != found){
+			if ('Y' != doesMasterExist()){
 				sql.execute(qry_insertMaster, this)
 			}
 			doInitProcessing = false
@@ -89,8 +91,22 @@ class Population{
 		return r
 	}
 
+	String doesMasterExist(){
+		// returns 'Y' if definition exists, otherwise 'N'
+		String found = sql.firstRow(qry_doesMasterExist, this)?.found
+		return found ?: 'N'
+	}
+
+    Integer delete(){
+    	// Remove entire population Definition
+		Sql sql = script.sql
+    	removeAll()
+		sql.execute(qry_deleteMaster, this)
+		sql.updateCount
+    }
+
 // Query definitions
-private static String qry_emptyPop = """ 
+static String qry_emptyPop = """ 
 	delete from glbextr
 	where glbextr_application = :application
 	  and glbextr_selection =   :selection
@@ -98,7 +114,7 @@ private static String qry_emptyPop = """
 	  and glbextr_user_id =     :user
 """	
 
-private static String qry_insertPIDM = """ 
+static String qry_insertPIDM = """ 
 	insert into glbextr
 	(glbextr_application, 
 	glbextr_selection,
@@ -119,7 +135,7 @@ private static String qry_insertPIDM = """
 	 Null)
 """
 
-private static String qry_insertMaster = """ 
+static String qry_insertMaster = """ 
 	insert into glbslct
 	(glbslct_application,
 	 glbslct_selection,
@@ -133,19 +149,19 @@ private static String qry_insertMaster = """
 		:selection, 
 		:creator, 
 		:descr,
-		'N',
+		:lock_ind,
 		SYSDATE, 
-	    Null)
+	    :type_ind)
 """
 
-private static String qry_doesMasterExist = """ 
+static String qry_doesMasterExist = """ 
 	select 'Y' found	from glbslct
 	where glbslct_application = :application
 	  and glbslct_selection =   :selection
 	  and glbslct_creator_id =  :creator
 """
 
-private static String qry_count = """ 
+static String qry_count = """ 
 	select count(*) count from glbextr
 	where glbextr_application = :application
 	  and glbextr_selection =   :selection
@@ -153,7 +169,7 @@ private static String qry_count = """
 	  and glbextr_user_id =     :user
 """	
 
-private static String qry_getPIDM = """ 
+static String qry_getPIDM = """ 
 	select glbextr_key pidm from glbextr
 	where glbextr_application = :application
 	  and glbextr_selection =   :selection
@@ -165,5 +181,12 @@ static String qry_ApplicationList = """
 	 select GLBAPPL_APPLICATION from GLBAPPL 
 	 order by GLBAPPL_APPLICATION
 """	
+
+static String qry_deleteMaster = """ 
+	delete from glbslct
+	where glbslct_application = :application
+	  and glbslct_selection =   :selection
+	  and glbslct_creator_id =  :creator
+"""
 
 }
