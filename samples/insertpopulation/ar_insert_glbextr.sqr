@@ -1,0 +1,272 @@
+! ========================================================================
+! file : insert_glbextr.sqr
+! desc : SQR script to load glbextr from a flat file.
+! date : JAC 07/10/2001
+!        JAC 23-APR-04 Added an input asking whether to delete the prior
+!                      population or not.
+!        JAC 12-JUL-05 Added check for ssn as well as id when looking for pidm.
+!        bss 20111114  Added check for UVM NetID too.
+! ========================================================================
+#include 'sql_setrole.subsqr'
+
+
+begin-program
+  do sql_setrole
+  do get_sysdate
+  do init_variables
+  input $input_file 'Enter the exact name of the file, including the extension.'
+  open $input_file
+        as 1 for-reading record=10
+  if $delete_prior = 'Y'
+     do delete_prior_pop
+  end-if
+  do process_records
+  do print_totals
+end-program
+
+! -----------------------------------------------------------------------
+! procedure SETUP
+! -----------------------------------------------------------------------
+begin-setup
+   page-size 56 80
+   #define name_col           01
+   #define id_col            30
+   #define ssn_col            42
+   #define pidm_col           54
+end-setup
+
+
+! -----------------------------------------------------------------------
+! procedure INIT_VARIABLES
+! -----------------------------------------------------------------------
+begin-procedure init_variables
+  move 0   to #glbextr_insert
+  move 0   to #glbextr_error
+  move 1   to #have_data
+  input $application  'Enter application, e.g. AR or FINAID'
+   let $application = upper($application)
+  input $user_id  'Enter user id'
+   let $user_id = upper($user_id)
+  input $selection  'Enter selection '
+   let $selection = upper($selection)
+  let $creator_id = $user_id
+  input $delete_prior 'Do you want to delete the prior population? Enter Y or N'
+   let $delete_prior = upper($delete_prior)
+end-procedure
+
+! -----------------------------------------------------------------------
+! procedure GET_SYSDATE
+! -----------------------------------------------------------------------
+begin-procedure get_sysdate
+begin-select
+sysdate &load_date
+from dual
+end-select
+end-procedure
+
+! -----------------------------------------------------------------------
+! procedure DELETE PRIOR POPULATION
+! -----------------------------------------------------------------------
+begin-procedure delete_prior_pop
+begin-select
+count(glbextr_key)  &prior_count
+  move &prior_count to #prior_count
+from glbextr
+where glbextr_application = $application
+  and glbextr_selection =    $selection
+  and glbextr_creator_id =  $creator_id
+  and glbextr_user_id =     $user_id
+end-select
+
+begin-sql
+delete from glbextr
+where glbextr_application = $application
+  and glbextr_selection =    $selection
+  and glbextr_creator_id =  $creator_id
+  and glbextr_user_id =     $user_id
+end-sql
+end-procedure
+
+! -----------------------------------------------------------------------
+! procedure PROCESS_RECORDS
+! -----------------------------------------------------------------------
+begin-procedure process_records
+while #have_data
+   move ' ' to $ssn
+
+   do read_a_record
+
+   if #end-file
+      break
+   end-if
+
+   if $ssn     <> ''                    ! not a blank line
+         add 1 to #read_count
+         do lookup_spriden_id              ! does the student exist?
+
+         if not #pidm_exists
+            do check_ssn
+         end-if
+
+         if not #pidm_exists
+            do check_netid
+         end-if
+
+          if #pidm_exists
+             do insert_glbextr
+             add 1 to #glbextr_insert
+          end-if
+
+         if not #pidm_exists
+            move 'Student ID not found in BANNER ' to $message
+            string $message $ssn by ' => ' into $message_out
+            concat ' <= record skipped' with $message_out
+            add 1 to #id_not_found
+            do print_detail
+         end-if
+
+   end-if !if $in_name <> ''
+end-while
+end-procedure
+
+! -----------------------------------------------------------------------
+! procedure read_a_record
+! -----------------------------------------------------------------------
+begin-procedure read_a_record
+  read 1 into $ssn:9
+end-procedure   ! read_a_record
+
+! -----------------------------------------------------------------------
+! procedure lookup_spriden_id
+! -----------------------------------------------------------------------
+begin-procedure lookup_spriden_id
+  move 0 to #pidm_exists
+  move 0 to #name_mismatch
+begin-select
+spriden_pidm            &spriden_pidm
+  move &spriden_pidm to $pidm
+spriden_last_name       &spriden_last
+  move &spriden_last to $last
+spriden_first_name      &spriden_first
+  move &spriden_first to $first
+     move 1 to #pidm_exists
+from spriden
+where spriden_id = $ssn
+and   spriden_change_ind is NULL
+end-select
+end-procedure
+
+! -----------------------------------------------------------------------
+begin-procedure check_ssn
+! -----------------------------------------------------------------------
+  move 0 to #pidm_exists
+  move 0 to #name_mismatch
+begin-select
+spbpers_pidm            &pidm
+  move &pidm to $pidm
+spriden_last_name       &last
+  move &last to $last
+spriden_first_name      &first
+  move &first to $first
+     move 1 to #pidm_exists
+from spriden, spbpers
+where spbpers_ssn = $ssn
+and spbpers_pidm = spriden_pidm
+and   spriden_change_ind is NULL
+end-select
+end-procedure
+
+! -----------------------------------------------------------------------
+begin-procedure check_netid
+! -----------------------------------------------------------------------
+  move 0 to #pidm_exists
+  move 0 to #name_mismatch
+begin-select
+gwbntid_pidm            &npidm
+  move &npidm to $pidm
+spriden_last_name       &nlast
+  move &nlast to $last
+spriden_first_name      &nfirst
+  move &nfirst to $first
+     move 1 to #pidm_exists
+from gwbntid, spriden
+where gwbntid_netid = $ssn
+and   spriden_change_ind is NULL
+and   gwbntid_pidm = spriden_pidm
+end-select
+end-procedure
+
+! -----------------------------------------------------------------------
+! procedure insert_glbextr
+! -----------------------------------------------------------------------
+begin-procedure insert_glbextr
+begin-sql on-error=glbextr_insert_error
+   insert into glbextr
+    (glbextr_application, 
+     glbextr_selection,
+     glbextr_creator_id,
+     glbextr_user_id, 
+     glbextr_key,
+     glbextr_activity_date,
+     glbextr_sys_ind, 
+     glbextr_slct_ind)
+     VALUES 
+       ($application, 
+        $selection, 
+        $creator_id, 
+        $user_id,
+        $pidm, 
+        SYSDATE, 
+       'S', 
+       Null);
+end-sql
+end-procedure
+
+! -----------------------------------------------------------------------
+! procedure print_detail
+! -----------------------------------------------------------------------
+begin-procedure print_detail
+ let $name = substr($last||', '||$first,1,25)
+
+  print $ssn                     ( 0,{ssn_col})
+  print $message_out             (+1,{name_col})
+end-procedure !print_detail
+
+! -----------------------------------------------------------------------
+! procedure glbextr_insert_error
+! -----------------------------------------------------------------------
+begin-procedure glbextr_insert_error
+  show 'The following GLBEXTR insert error was encountered; ' $sql-error
+  move $sql-error to $message_out
+  add 1 to #glbextr_error
+  add -1 to #glbextr_insert
+end-procedure
+
+! -----------------------------------------------------------------------
+! procedure print_totals
+! -----------------------------------------------------------------------
+begin-procedure print_totals
+  print 'Application:' (+2,05)
+  print $application (,36)
+  print 'Selection: '(+1,05)
+  print $selection (,36)
+  print 'Creator ID: '(+1,05)
+  print $creator_id (,36)
+  print 'User ID: '(+1,05)
+  print $user_id (,36)
+
+  print 'Total records read :' (+2,05)
+  print #read_count            (  ,40) edit 99,999
+
+  print 'Total records deleted :' (+2,05)
+  print #prior_count            (  ,40) edit 99,999
+
+  print 'Total records inserted:' (+2,05)
+  print #glbextr_insert           (  ,40) edit 99,999
+
+  print 'IDs not found in Banner:' (+2,05)
+  print #id_not_found_error       (  ,40) edit 99,999
+
+  print 'Total sql-insert errors:'  (+2,05)
+  print #glbextr_error            (  ,40) edit 99,999
+end-procedure
