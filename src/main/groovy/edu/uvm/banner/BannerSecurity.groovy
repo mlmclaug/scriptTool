@@ -1,11 +1,9 @@
-package edu.uvm.banner;
+package edu.uvm.banner.security;
 import groovy.sql.Sql;
 
-final class BannerSecurity {
-  static Integer seed1 = 96822688;
-  static Integer seed3 = 25348998;
+final class BannerSecurity extends BannerSeeds{
   // Banner Security for Object... do I have permission to execute this object?
-  static String setBanSecr = '''
+  private static String setBanSecr = '''
 declare
   hold_cmd  varchar2(240);
   object    varchar2(30);
@@ -18,8 +16,6 @@ declare
 
 begin
   object     :=  :sql_setrole_object;   
---! Next line is for testing only
---  object     :=  'TWPDOCL';
   version    :=  '1.0';
 
   G$_SECURITY.G$_VERIFY_PASSWORD1_PRD(object, version,
@@ -41,4 +37,9 @@ begin
   DBMS_SESSION.SET_ROLE(HOLD_CMD);
 end;
 ''' 
+
+static void apply( def script){
+  String scriptnm = script.getScriptName().toUpperCase()
+  script.sql.call(setBanSecr,[seed1, seed3, scriptnm])
+}
 }

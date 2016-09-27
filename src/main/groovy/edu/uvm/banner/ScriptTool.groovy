@@ -404,8 +404,7 @@ serviceFactory(class_name {, constructor_args})
 			    loglvl = Sql.LOG.level
 			    try{
 			    	Sql.LOG.level = java.util.logging.Level.SEVERE
-			    	sql.call(BannerSecurity.setBanSecr, 
-			    		[BannerSecurity.seed1, BannerSecurity.seed3, scriptnm])
+			    	edu.uvm.banner.security.BannerSecurity.apply(this)
 			    	}catch(SQLException e){
 			    		println "WARNING: Banner Security not enabled on this object.\n" + e.getMessage()
 			    		System.exit(1);

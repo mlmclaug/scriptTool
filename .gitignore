@@ -1,3 +1,4 @@
 reporter/
 build/
 .gradle/
+src/main/groovy/edu/uvm/banner/BannerSeeds.groovy

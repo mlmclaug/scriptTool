@@ -52,3 +52,28 @@ task deploy << {
     }
   }
 }
+
+task setseed << {
+  // Task to Set the Banner Security Seed numbers for this installation
+  // Syntax:  gradle -q setseed
+  // Will prompt for seed1 and seed3.
+  // Run once.  After that edit the class file directly.
+  String fname =  "$projectDir/src/main/groovy/edu/uvm/banner/BannerSeeds.groovy"
+  File f = new File( fname )
+
+  if (!f.exists()) {
+    String seed1 = System.console().readLine("Enter seed1: ")
+    String seed3 = System.console().readLine("Enter seed3: ")
+    String code = """package edu.uvm.banner.security;
+class BannerSeeds {
+  protected static Integer seed1 = $seed1;
+  protected static Integer seed3 = $seed3;
+}
+"""
+    // Doit...
+    f.write(code)
+  } else {
+    println "File already exists. See $fname"
+  }
+}
+
