@@ -93,7 +93,7 @@ class Population{
 
 	String doesMasterExist(){
 		// returns 'Y' if definition exists, otherwise 'N'
-		String found = sql.firstRow(qry_doesMasterExist, this)?.found
+		String found = script.sql.firstRow(qry_doesMasterExist, this)?.found
 		return found ?: 'N'
 	}
 
