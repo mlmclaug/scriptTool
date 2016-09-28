@@ -280,27 +280,30 @@ serviceFactory(class_name {, constructor_args})
 	// Uses arg[0] from the command line and/or defaults from the environment.
 	// expected formats are one of the following:
 	//         ['/@prod', '/', 'mlm@aist', 'mlm/secret@jdbc:oracle:thin:@ldap://joes/garage/BANUPG', '']
-	 Map res = [:]
-	 if (dbcOverride != null){
+	Map res = [:]
+	if (dbcOverride != null){
 		dbc = dbcOverride
-	 } else{
+	} else{
 		dbc = args.size()>0 ? args[0] : ''
-	 }
-	 // -verbose or -enableBanner or -F is expected to be after the connection info..
-	 // if it's first on the command line then assume connection info not provided.
-	 if ( dbc == '-verbose' || dbc == '-enableBanner' || dbc =~ /^-F/ ){dbc = ''}
+	}
+   	String drivername = System.getenv('JDBC_DRIVER') ?: 'oracle.jdbc.OracleDriver'  
 
-	 v=dbc.split("@",2)
+	// -verbose or -enableBanner or -F is expected to be after the connection info..
+	// if it's first on the command line then assume connection info not provided.
+	if ( dbc == '-verbose' || dbc == '-enableBanner' || dbc =~ /^-F/ ){dbc = ''}
+	v=dbc.split("@",2)
 	 
 	if ( v[0] == '/') {
 		res = [uid : '', pwd : '' 
-			,url : getURL_OCI( v.size() > 1 ? v[1] : '')]
+			,url : getURL_OCI( v.size() > 1 ? v[1] : '')
+			,drivername : drivername]
 	} else if ( '-NODB'  == v[0].toUpperCase() ||
 				'/NOLOG' == v[0].toUpperCase() ) {
-		res = [uid : '', pwd : '', url : null]
+		res = [uid : '', pwd : '', url : null , drivername : null]
 	} else{
 		res = [uid : getUserID(v[0]), pwd : getPassword(v[0])
-			, url : getURL_THIN( v.size() > 1 ? v[1] : '')]
+			, url : getURL_THIN( v.size() > 1 ? v[1] : '')
+			,drivername : drivername]
 	}
 	res
 	}
@@ -382,9 +385,8 @@ serviceFactory(class_name {, constructor_args})
 			dbgShow "Open Connection to Database and set dbname and username."
 		    def loglvl = Sql.LOG.level
 		    try{
-		    	String drivername = System.getenv('ORACLE_DRIVER') ?: 'oracle.jdbc.OracleDriver'  
 		    	Sql.LOG.level = java.util.logging.Level.SEVERE
-				sql = Sql.newInstance(dbc.url, dbc.uid, dbc.pwd, drivername)
+				sql = Sql.newInstance(dbc.url, dbc.uid, dbc.pwd, dbc.drivername)
 		    	}catch(SQLException e){
 		    		println "Datbase Connection failed.\n" + e.getMessage()
 		    		System.exit(1);
@@ -434,7 +436,7 @@ serviceFactory(class_name {, constructor_args})
 	}
 	void disp_dbc(Map dbc){
 		dbgShow "Connection Info: user= ${dbc.uid}, password= ${'-'.multiply(dbc.pwd.size())}"
-		dbgShow "            url: ${dbc.url}"
+		dbgShow "            url: ${dbc.url}, drivername : ${dbc.drivername}"
 	}
 	String[] fetchParmBuffer(){
 		// extracts from the command line any arguments that will be used as responses to 
