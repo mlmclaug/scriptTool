@@ -16,7 +16,7 @@ class Population{
 	String user
 	// Parent properties.. if need to create population
 	String descr = 'Loaded via Scripttool'
-	String lock_ind = null
+	String lock_ind = 'N'
 	String type_ind = 'S'
 
 	// internal flag.. first time we insert to a population

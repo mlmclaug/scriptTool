@@ -1,4 +1,4 @@
-reporter/
+lib/
 build/
 .gradle/
-src/main/groovy/edu/uvm/banner/BannerSeeds.groovy
+src/main/groovy/edu/uvm/banner/security/BannerSeeds.groovy

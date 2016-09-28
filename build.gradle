@@ -28,7 +28,7 @@ dependencies {
     // We use the latest groovy 2.x version for building this library
     compile 'org.codehaus.groovy:groovy-all:2.4.6'
     compile 'com.oracle:ojdbc6:11.2.0'
-    compile 'edu.uvm.banner:tabularreport:0.0.1'
+    //compile 'edu.uvm.banner:tabularreport:0.0.1'
     compile group: 'javax.mail', name: 'mail', version: '1.4.7'
     compile 'org.apache.commons:commons-csv:1.4'
 
@@ -58,7 +58,7 @@ task setseed << {
   // Syntax:  gradle -q setseed
   // Will prompt for seed1 and seed3.
   // Run once.  After that edit the class file directly.
-  String fname =  "$projectDir/src/main/groovy/edu/uvm/banner/BannerSeeds.groovy"
+  String fname =  "$projectDir/src/main/groovy/edu/uvm/banner/security/BannerSeeds.groovy"
   File f = new File( fname )
 
   if (!f.exists()) {
