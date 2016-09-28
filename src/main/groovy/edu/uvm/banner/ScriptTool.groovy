@@ -238,9 +238,10 @@ dbname   - database name
 username - id of the database user  - convenience variable
 
 ck       - a map of available validation methods. Contains:
-          ''' + ck.collect({key,value->return key}).join(', ') + '''
+''' + wrap_list(ck.collect({key,value->return key}),80,' '*10, ', ') + '''
+
 tr       - a map of available translation methods. Contains:
-          ''' + tr.collect({key,value->return key}).join(', ') + '''
+''' + wrap_list(tr.collect({key,value->return key}),80,' '*10, ', ') + '''
 
 dbgShow(msg) - This method prints msg to stdout if -verbose. debug messages.
 
@@ -275,6 +276,30 @@ serviceFactory(class_name {, constructor_args})
 
 '''
 	}
+
+	String wrap_list(List l, Integer atPos, String indent, String fsep){
+	// Returns a list as a comma seperated string starting a newline atPos 
+	// using indent indent to preceed each line and separating each elemetn with fsep
+	// Syntax: wrap_list(l,80,' '*5, ', ') << wraps at 80, indents 5 spaces and sep is a ', '
+	List lines = []
+	String sep = ''
+	String line = indent
+
+	if ( l.size() > 0 ) {
+	    l.each { it ->
+	        if ( (line.size() + it.size() + sep.size()) > atPos ) {
+	            lines << line
+	            line = indent + it
+	        } else {
+	            line += sep + it
+	        }
+	        sep = fsep
+	    }
+	   lines << line
+	}
+	return lines.join("\n")
+	}
+
 	Map getDBConnectionInfo(String dbcOverride = null){
 	// Gets a map of the database connection info 
 	// Uses arg[0] from the command line and/or defaults from the environment.
