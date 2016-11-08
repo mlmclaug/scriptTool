@@ -418,8 +418,9 @@ serviceFactory(class_name {, constructor_args})
 		    	}
 		    Sql.LOG.level = loglvl
 
-			dbname = sql.firstRow("select value from sys.v_\$parameter where name = 'db_name'").value
-			username = sql.firstRow("select user from user_users").user
+			username = sql.getConnection().getUserName()
+			dbname = fetchDBName()
+			if (dbname == null){ dbname =  extractDBName(sql.getConnection().getMetaData().getURL()) }
 
 		    // if -enableBanner then do banner security checking/privledge elevating
 		    //if (args.any { it == '-enableBanner'}){
@@ -447,6 +448,40 @@ serviceFactory(class_name {, constructor_args})
 		String scriptFile = getClass().protectionDomain.codeSource.location.path
 		String fname = scriptFile.split('/')[-1]
 		fname.take(fname.lastIndexOf('.'))
+	}
+
+    String fetchDBName(){
+		// Get the Database name from the database.
+		// Note: assumes Oracle.
+        String dbn
+        try{
+            dbn = sql.firstRow("select value from sys.v_\$parameter where name = 'db_name'")?.value
+        }catch( Exception e ){
+            dbn = null
+        }
+    return dbn
+    }
+
+	String extractDBName( String url){
+		// tries to extract the database name from the url
+		// Get everything after the @ it there is one
+		pos = url.lastIndexOf("@")
+		String u1 = pos>-1 ? url.substring(pos+1) : url
+
+		def pos = u1.lastIndexOf("/")
+		if (pos != -1){
+			// Get everything after the final slash up to a comma or semi-colon
+			u1 = u1.substring(pos + 1)
+			',;'.each {it ->
+				pos = u1.indexOf(it)
+				u1 = pos>-1 ? u1.substring(0,pos) : u1
+			}
+		}else{
+			// Get everythinh after the final colon (if there is one)
+			pos = u1.lastIndexOf(":")
+			u1 = pos>-1 ? u1.substring(pos+1) : u1
+		}
+		return u1.toUpperCase()
 	}
 
 	String prompt(String prompt_text){
@@ -603,10 +638,11 @@ serviceFactory(class_name {, constructor_args})
 	}
 
 	def run() {
+		final result
 		initialize()
 		try {
 			// Run actually script code.
-			final result = runCode()
+			result = runCode()
 		dbgShow "Script return value = $result"
 		} finally {
 			dbgShow '>Clearing state.'
@@ -618,6 +654,7 @@ serviceFactory(class_name {, constructor_args})
 			
 			dbgShow '>Clearing state is done.'
 		}
+		return result
 	}
 	 
 	private void initialize() {
