@@ -4,6 +4,6 @@ import edu.uvm.banner.ScriptTool;
 println ">>> Connected as ${username}  in ${dbname}"
 
 print '    Roles: '
-sql.eachRow('select role from session_roles'){ row ->
+sql?.eachRow('select role from session_roles'){ row ->
         print row.role + ', '}
 println ''
