@@ -21,7 +21,6 @@ TODO:
 */
 package edu.uvm.banner;
 import groovy.sql.Sql;
-import java.sql.*;
 import edu.uvm.banner.general.reporter.*;
 import java.util.Locale;
 
@@ -40,6 +39,7 @@ abstract class ScriptTool  extends groovy.lang.Script {
 	private String[] parmbuf;  //buffer to hold user input parameters entered on the commandline. 
 						//get's drained by Input method.
 	private String _transformer_buffer = '' //Do Not Use - Property is transient, used during input transformations.
+	edu.uvm.banner.Configurator config   //Configurator object
 
     // Optional provided Input Validations.  
     // Each validation returns true is input is ok.  
@@ -78,15 +78,21 @@ abstract class ScriptTool  extends groovy.lang.Script {
 		     }
 		}
 		ck['isStudentID'] = {studentID -> 
-			def pidm = sql.firstRow('select uvmfrm_utl.get_pidm(?) pidm from dual',[studentID]).pidm
+	        String q = config.defaults.queries.ck.isStudentID ?:
+						"select uvmfrm_utl.get_pidm(?) pidm from dual"
+			def pidm = sql.firstRow(q,[studentID])?.getAt(0) ?: 0
 			printIfFalse( !studentID || pidm > 0  , "*** Invalid Student ID: ${studentID}.") 
 		}
 		ck['isAIDY'] = {aidy -> 
-			String aidyear = sql.firstRow('select robinst_aidy_code from robinst where robinst_aidy_code = ?',[aidy])?.robinst_aidy_code
+	        String q = config.defaults.queries.ck.isAIDY ?:
+						'select robinst_aidy_code from robinst where robinst_aidy_code = ?'
+			String aidyear = sql.firstRow(q,[aidy])?.getAt(0) 
 			printIfFalse( !aidy || aidyear , "*** Invalid Aid Year: ${aidy}.") 
 		}
 		ck['isTermCD'] = {termcd -> 
-			String term = sql.firstRow('select stvterm_code from stvterm where stvterm_code = ?',[termcd])?.stvterm_code
+	        String q = config.defaults.queries.ck.isTermCD ?:
+						'select stvterm_code from stvterm where stvterm_code = ?'
+			String term = sql.firstRow(q,[termcd])?.getAt(0)
 			printIfFalse( !termcd || term , "*** Invalid Term Code: ${termcd}.") 
 		}
 		ck['fileExists'] = {filename ->
@@ -113,16 +119,22 @@ abstract class ScriptTool  extends groovy.lang.Script {
 
     void registerTranslations(){
 		tr['studentid2pidm'] = {studentID -> 
-			sql.firstRow('select uvmfrm_utl.get_pidm(?) pidm from dual',[studentID]).pidm
+	        String q = config.defaults.queries.ck.studentid2pidm ?:
+						'select uvmfrm_utl.get_pidm(?) pidm from dual'
+			sql.firstRow(q,[studentID])?.getAt(0)  ?: 0
 		}
 		tr['term2aidy'] = {termcd -> 
-			sql.firstRow('select uvm_utils.acadyr(?) aidy from dual',[termcd]).aidy
+	        String q = config.defaults.queries.ck.term2aidy ?:
+						'select uvm_utils.acadyr(?) aidy from dual'
+			sql.firstRow(q,[termcd])?.getAt(0)
 		}
 		tr['ucase'] = {input -> 
 			input.toUpperCase()
 		}
 		tr['findstudent'] = {studentID -> 
-			sql.firstRow('select uvmfrm_utl.findStudentBySomeID(?) pidm from dual',[studentID]).pidm
+	        String q = config.defaults.queries.ck.findstudent ?:
+						'select uvmfrm_utl.findStudentBySomeID(?) pidm from dual'
+			sql.firstRow(q,[studentID])?.getAt(0) ?: 0
 		}
 	}
 
@@ -300,150 +312,6 @@ serviceFactory(class_name {, constructor_args})
 	return lines.join("\n")
 	}
 
-	Map getDBConnectionInfo(String dbcOverride = null){
-	// Gets a map of the database connection info 
-	// Uses arg[0] from the command line and/or defaults from the environment.
-	// expected formats are one of the following:
-	//         ['/@prod', '/', 'mlm@aist', 'mlm/secret@jdbc:oracle:thin:@ldap://joes/garage/BANUPG', '']
-	Map res = [:]
-	if (dbcOverride != null){
-		dbc = dbcOverride
-	} else{
-		dbc = args.size()>0 ? args[0] : ''
-	}
-   	String drivername = System.getenv('JDBC_DRIVER') ?: 'oracle.jdbc.OracleDriver'  
-
-	// -verbose or -enableBanner or -F is expected to be after the connection info..
-	// if it's first on the command line then assume connection info not provided.
-	if ( dbc == '-verbose' || dbc == '-enableBanner' || dbc =~ /^-F/ ){dbc = ''}
-	v=dbc.split("@",2)
-	 
-	if ( v[0] == '/') {
-		res = [uid : '', pwd : '' 
-			,url : getURL_OCI( v.size() > 1 ? v[1] : '')
-			,drivername : drivername]
-	} else if ( '-NODB'  == v[0].toUpperCase() ||
-				'/NOLOG' == v[0].toUpperCase() ) {
-		res = [uid : '', pwd : '', url : null , drivername : null]
-	} else{
-		res = [uid : getUserID(v[0]), pwd : getPassword(v[0])
-			, url : getURL_THIN( v.size() > 1 ? v[1] : '')
-			,drivername : drivername]
-	}
-	res
-	}
-
-	String getUserID(String u){
-	// Extract userid from u, if empty prompt
-	// u is characters left of the @ on the connect string
-	// expected to be in form of '', 'uid', or 'uid/pwd'
-	String userid = ''
-	userid = u.split('/')[0]
-
-	if ( userid == '') {
-	  userid = prompt('User ID: ')
-	}
-	userid
-	}
-
-	String getPassword(String u){
-	// Extract password from u, if empty prompt
-	// u is characters left of the @ on the connect string
-	// expected to be in form of '', 'uid', or 'uid/pwd'
-	String pwrd = ''
-	String[] t = u.split('/')
-	pwrd = t.size() > 1 ? t[1] : ''
-
-	if ( pwrd == '') {
-	  pwrd = promptpw('Password: ')
-	}
-	pwrd
-	}
-
-	String getURL_OCI(String u){
-	//Get url for the database. u is right of the @
-	// returns url in format of jdbc:oracle:oci:/@AIST
-	// u is expected to be AIST, '', or full url to use: jdbc:oracle:oci:/@AIST
-	String url = ''
-
-	// if true has one word w/ no special characters... treat as a sid.
-	// other wise accept string as is....
-	if (u.size()>0 && u ==~  /^[a-zA-Z0-9]*$/ ) { //connection info is supplied and is one word.
-	   url = 'jdbc:oracle:oci:/@' + u.toUpperCase()
-	} else if (u.size()>0) { // connection info is supplied.. expected to be complete url
-		url = u
-	} else { // here no connect info supplied.. use Oracle SID if available.
-		String sid = System.getenv('ORACLE_SID')
-		sid = sid ? sid : 'AIST'
-		url = 'jdbc:oracle:oci:/@' + sid
-	}
-	url
-	}
-
-	String getURL_THIN(String c){
-	//Get url for the database. c is right of the @
-	// returns url in format of jdbc:oracle:thin:@ldap://ldap.uvm.edu:389/AIST,CN=OracleContext,dc=uvm,dc=edu
-	// c is expected to be AIST, '', or full url to use: jdbc:oracle:thin:@.....
-	// if nothing provided get from (1) environment (JDBC_CONNECTION) (2) make from environment ORACLE_SID.
-	  String url = System.getenv('JDBC_CONNECTION')
-	  String sid = System.getenv('ORACLE_SID')
-	  sid = sid ? sid : 'AIST'
-	  url = url ? url : 'jdbc:oracle:thin:@ldap://ldap.uvm.edu:389/' + sid + ',CN=OracleContext,dc=uvm,dc=edu'  
-
-	if (c.size()>0) {
-	    if  ( c ==~  /^[a-zA-Z0-9]*$/ ) {
-	       if (c.toUpperCase() != sid) {
-	       // here we have one word after @ and it is different than the SID
-	       // so replace SID in the default url.
-	       url = url.replace (sid, c.toUpperCase() )
-	       }
-	    } else{// take connection url as provided
-	      url = c
-	    }
-	}
-	url
-	}
-
-	void openDBConnection(Map dbc) {
-		//dbc = Map [uid, pwd, url, scriptnm]
-		if (dbc.url != null){
-			dbgShow "Open Connection to Database and set dbname and username."
-		    def loglvl = Sql.LOG.level
-		    try{
-		    	Sql.LOG.level = java.util.logging.Level.SEVERE
-				sql = Sql.newInstance(dbc.url, dbc.uid, dbc.pwd, dbc.drivername)
-		    	}catch(SQLException e){
-		    		println "Datbase Connection failed.\n" + e.getMessage()
-		    		System.exit(1);
-		    	}
-		    Sql.LOG.level = loglvl
-
-			username = sql.getConnection().getUserName()
-			dbname = fetchDBName()
-			if (dbname == null){ dbname =  extractDBName(sql.getConnection().getMetaData().getURL()) }
-
-		    // if -enableBanner then do banner security checking/privledge elevating
-		    //if (args.any { it == '-enableBanner'}){
-		    if (dobannersecurity){
-				// Set Banner Secutity - prints message if not permitted and security is not elevated.
-				// Reduce log level to hide security code being executed when error is thrown
-				String scriptnm = getScriptName().toUpperCase()
-				dbgShow "Setting Banner secuity on ${scriptnm}."
-			    loglvl = Sql.LOG.level
-			    try{
-			    	Sql.LOG.level = java.util.logging.Level.SEVERE
-			    	edu.uvm.banner.security.BannerSecurity.apply(this)
-			    	}catch(SQLException e){
-			    		println "WARNING: Banner Security not enabled on this object.\n" + e.getMessage()
-			    		System.exit(1);
-			    	}
-			    Sql.LOG.level = loglvl
-			}
-		} else {
-			dbgShow "No Database, connection deferred."
-		}
-	}
-
 	String getScriptName(){
 		String scriptFile = getClass().protectionDomain.codeSource.location.path
 		String fname = scriptFile.split('/')[-1]
@@ -454,30 +322,32 @@ serviceFactory(class_name {, constructor_args})
 		// Get the Database name from the database.
 		// Note: assumes Oracle.
         String dbn
+        String q = config.defaults.queries.getDBName ?:
+        			"select value from sys.v_\$parameter where name = 'db_name'"
         try{
-            dbn = sql.firstRow("select value from sys.v_\$parameter where name = 'db_name'")?.value
+            dbn = sql.firstRow(q)?.getAt(0)
         }catch( Exception e ){
             dbn = null
         }
-    return dbn
+    	return dbn
     }
 
 	String extractDBName( String url){
 		// tries to extract the database name from the url
-		// Get everything after the @ it there is one
+		// first pull out everything after the @ if there is one
 		pos = url.lastIndexOf("@")
 		String u1 = pos>-1 ? url.substring(pos+1) : url
 
 		def pos = u1.lastIndexOf("/")
 		if (pos != -1){
-			// Get everything after the final slash up to a comma or semi-colon
+			// then get everything after the final slash up to a comma or semi-colon
 			u1 = u1.substring(pos + 1)
 			',;'.each {it ->
 				pos = u1.indexOf(it)
 				u1 = pos>-1 ? u1.substring(0,pos) : u1
 			}
 		}else{
-			// Get everythinh after the final colon (if there is one)
+			// Get everything after the final colon (if there is one)
 			pos = u1.lastIndexOf(":")
 			u1 = pos>-1 ? u1.substring(pos+1) : u1
 		}
@@ -494,10 +364,10 @@ serviceFactory(class_name {, constructor_args})
 	void dbgShow(String msg){
 		if (verbose){println msg}
 	}
-	void disp_dbc(Map dbc){
-		dbgShow "Connection Info: user= ${dbc.uid}, password= ${'-'.multiply(dbc.pwd.size())}"
-		dbgShow "            url: ${dbc.url}, drivername : ${dbc.drivername}"
-	}
+	// void disp_dbc(Map dbc){
+	// 	dbgShow "Connection Info: user= ${dbc.uid}, password= ${'-'.multiply(dbc.pwd.size())}"
+	// 	dbgShow "            url: ${dbc.url}, drivername : ${dbc.drivername}"
+	// }
 	String[] fetchParmBuffer(){
 		// extracts from the command line any arguments that will be used as responses to 
 		// prompts.  Ignores the connection info (assumed in first position) and any 
@@ -663,9 +533,21 @@ serviceFactory(class_name {, constructor_args})
 		dbgShow '>Initializing state.'
 		dbgShow "Arguments: ${args}"
 		parmbuf = fetchParmBuffer()
-        Map dbc = getDBConnectionInfo()
-        disp_dbc(dbc)
-        openDBConnection(dbc)
+
+		config = serviceFactory(edu.uvm.banner.Configurator)
+		sql = config.resolveDefaults().openDatabase()
+
+	    if (dobannersecurity){
+	    	config.applyBannerSecurity()
+	    }
+
+		if (sql){
+			// Set convenience variables username & dbname
+			username = sql.getConnection().getUserName()
+			dbname = fetchDBName() ?:
+				extractDBName(sql.getConnection().getMetaData().getURL())
+		}
+
         dbgShow 'Setting up report instance.' 
 		rpt = new TabularReport() 
 		rpt.outputDest = getReportDestination(args)
