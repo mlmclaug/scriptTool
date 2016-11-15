@@ -79,7 +79,7 @@ abstract class ScriptTool  extends groovy.lang.Script {
 		}
 		ck['isStudentID'] = {studentID -> 
 	        String q = config.defaults.queries.ck.isStudentID ?:
-						"select uvmfrm_utl.get_pidm(?) pidm from dual"
+				"select spriden_pidm from spriden where spriden_change_ind is null and spriden_id = rtrim(?)"
 			def pidm = sql.firstRow(q,[studentID])?.getAt(0) ?: 0
 			printIfFalse( !studentID || pidm > 0  , "*** Invalid Student ID: ${studentID}.") 
 		}
@@ -119,21 +119,24 @@ abstract class ScriptTool  extends groovy.lang.Script {
 
     void registerTranslations(){
 		tr['studentid2pidm'] = {studentID -> 
-	        String q = config.defaults.queries.ck.studentid2pidm ?:
-						'select uvmfrm_utl.get_pidm(?) pidm from dual'
+	        String q = config.defaults.queries.tr.studentid2pidm ?:
+						"select spriden_pidm from spriden where spriden_change_ind is null and spriden_id = rtrim(?)"
 			sql.firstRow(q,[studentID])?.getAt(0)  ?: 0
 		}
 		tr['term2aidy'] = {termcd -> 
-	        String q = config.defaults.queries.ck.term2aidy ?:
-						'select uvm_utils.acadyr(?) aidy from dual'
+	        String q = config.defaults.queries.tr.term2aidy ?:
+	        		'select stvterm_fa_proc_yr from stvterm where stvterm_code = ?'
 			sql.firstRow(q,[termcd])?.getAt(0)
 		}
 		tr['ucase'] = {input -> 
 			input.toUpperCase()
 		}
 		tr['findstudent'] = {studentID -> 
-	        String q = config.defaults.queries.ck.findstudent ?:
-						'select uvmfrm_utl.findStudentBySomeID(?) pidm from dual'
+	        String q = config.defaults.queries.tr.findstudent ?:
+						'''select spriden_pidm from  spriden, spbpers
+  							where spriden_change_ind is null
+  							and spriden_pidm = spbpers_pidm
+  							and (spriden_id = ?1 or spbpers_ssn = ?1)'''
 			sql.firstRow(q,[studentID])?.getAt(0) ?: 0
 		}
 	}
@@ -546,6 +549,18 @@ serviceFactory(class_name {, constructor_args})
 			username = sql.getConnection().getUserName()
 			dbname = fetchDBName() ?:
 				extractDBName(sql.getConnection().getMetaData().getURL())
+		}
+
+        dbgShow 'Load any custom constraints and/or translations.' 
+		config.defaults?.constraints.each { k, v ->
+			dbgShow "   +Adding ck.${k}"
+			v.delegate = this
+			ck[k] = v
+		}
+		config.defaults?.translates.each { k, v -> 
+			dbgShow "   +Adding tr.${k}"
+			v.delegate = this
+			tr[k] = v
 		}
 
         dbgShow 'Setting up report instance.' 
