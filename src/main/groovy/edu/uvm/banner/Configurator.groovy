@@ -37,6 +37,19 @@ queries{
 	tr.term2aidy='select uvm_utils.acadyr(?) aidy from dual'
 	tr.findstudent='select uvmfrm_utl.findStudentBySomeID(?) pidm from dual'
 }
+
+// constraints{
+// 	dirExists = {dirname ->
+// 		File f = new File(dirname)
+// 		printIfFalse( !dirname || (f.exists() && f.isDirectory()), "*** Directory not found: ${dirname}.") 
+// 	}
+// }
+
+// translates{
+// 	lcase = {input ->
+// 		input.toLowerCase()
+// 	}
+// }
 ========================
 
 The following environment variables will override defaults that are supplied 
@@ -83,9 +96,29 @@ class Configurator{
 
 		// override w/ values from the environment (if defined)
 		script.dbgShow "Checking for environment variables: " +  defaults.database.env_dbname + ', JDBC_CONNECTION, JDBC_DRIVER'
-		dbName = System.getenv(defaults.database.env_dbname)
-		url = System.getenv('JDBC_CONNECTION') ?: defaults.database.url
-		driverName = System.getenv('JDBC_DRIVER') ?: defaults.database.driver_name
+		url =  defaults.database.url
+		dbName = defaults.database.dflt_dbname
+		String envdb = System.getenv(defaults.database.env_dbname)
+		if (envdb != null && envdb.size()>0 && envdb != dbName) {
+			// here new DBname is coming from the environment and is different that the default.
+			// make sure the dbname stays consistent with dbname in the url like when overriding fom the command line.
+			script.dbgShow "  > Overridng default database name: ${dbName} changed to ${envdb}" 
+			url = url.replace (dbName, envdb)
+			dbName = envdb
+		}
+
+		String envu = System.getenv('JDBC_CONNECTION')
+		if (envu != null && url != envu){
+			script.dbgShow "  > Overridng default url: ${envu}" 
+			url = envu
+		}
+
+		String envdrv = System.getenv('JDBC_DRIVER')
+		driverName =  defaults.database.driver_name
+		if (envdrv != null  && driverName != envdrv){
+			script.dbgShow "  > Overridng default driver name: ${envdrv}" 
+			driverName = envdrv
+		}
 
 		return this
 	}

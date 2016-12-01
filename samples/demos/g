@@ -9,14 +9,14 @@
 # 06/30/2016 mlm - original version
 
 # Force JDK8 on the front of path.  Default env gets jre8. 
-GROOVY_HOME=/usr/local/share/groovy/current
-JAVA_HOME=/u01/app/oracle/product/java/jdk1.8.0_91
-PATH=$GROOVY_HOME/bin:$JAVA_HOME/bin:$PATH
+export GROOVY_HOME=/usr/local/share/groovy/current
+export JAVA_HOME=/u01/app/oracle/product/java/jdk1.8.0_91
+export PATH=$GROOVY_HOME/bin:$JAVA_HOME/bin:$PATH
 
 # Force to use oracle version 12 JDBC... the defaul environment/ 11 client is pooch.
-LD_LIBRARY_PATH=/u01/app/oracle/product/12.1.0.2/client64_1/lib
-OCI=/u01/app/oracle/product/12.1.0.2/client64_1
-COMMON=$BANUVM_HOME/ar/java/scripttool
+export LD_LIBRARY_PATH=/u01/app/oracle/product/12.1.0.2/client64_1/lib
+export OCI=/u01/app/oracle/product/12.1.0.2/client64_1
+export COMMON=$BANUVM_HOME/ar/java/scripttool
 
 groovy -version
 #groovy -cp $OCI/jdbc/lib/ojdbc6.jar:./scripttool.jar:$COMMON/tabularreport.jar:./javax.mail.jar:./commons-csv-1.4.jar  "$@"
