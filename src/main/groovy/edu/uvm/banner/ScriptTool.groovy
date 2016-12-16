@@ -565,7 +565,10 @@ serviceFactory(class_name {, constructor_args})
 				args = config.defaults.command_line
 				verbose =  args.any { it == '-verbose'}
 				dobannersecurity = args.any { it == '-enableBanner'}
-				dbgShow ">Using command line parameters from config."
+
+				List t = args.collect()
+				if (t.size()>=0) { t[0] = t[0].replaceAll("(?<=\\/)[^@]*(?=@)",'xxx')}
+				dbgShow(">Using command line parameters from config: " + t.toString())
 			}else{// here nothing provided... assume no database desired
 				args = ['-NODB']
 			}
