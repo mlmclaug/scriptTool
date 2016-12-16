@@ -1,1 +1,1 @@
-groovyConsole -cp ./lib/*:./build/libs/scripttool.jar &
+groovyConsole -cp ./lib/*:./build/libs/scripttool.jar

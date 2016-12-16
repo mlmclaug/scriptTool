@@ -38,8 +38,9 @@ begin
 end;
 ''' 
 
-static void apply( def script){
+static void apply( def script, Sql dbsession){
   String scriptnm = script.getScriptName().toUpperCase()
-  script.sql.call(setBanSecr,[seed1, seed3, scriptnm])
+  //script.sql.call(setBanSecr,[seed1, seed3, scriptnm])
+  dbsession.call(setBanSecr,[seed1, seed3, scriptnm])
 }
 }

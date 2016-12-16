@@ -50,6 +50,7 @@ queries{
 // 		input.toLowerCase()
 // 	}
 // }
+//command_line=['-NODB']
 ========================
 
 The following environment variables will override defaults that are supplied 
@@ -142,7 +143,6 @@ class Configurator{
 		} else{
 			dbc = script.args.size()>0 ? script.args[0] : ''
 		}
-
 		// -verbose or -enableBanner or -F is expected to be after the connection info..
 		// if it's first on the command line then assume connection info not provided.
 		if ( dbc == '-verbose' || dbc == '-enableBanner' || dbc =~ /^-F/ ){dbc = ''}
@@ -252,15 +252,16 @@ class Configurator{
 		return sqlObj
 	}
 
-	void applyBannerSecurity() {
+	void applyBannerSecurity(Sql dbsession) {
 		// Set Banner Secutity - prints message if not permitted and security is not elevated.
 		// Reduce log level to hide security code being executed when error is thrown
+		// dbsession - sql instance to secure.. usually primary but could be additional databases.
 		String scriptnm = script.getScriptName().toUpperCase()
 		script.dbgShow "Setting Banner secuity on ${scriptnm}."
 	    def loglvl = Sql.LOG.level
 	    try{
 	    	Sql.LOG.level = java.util.logging.Level.SEVERE
-	    	edu.uvm.banner.security.BannerSecurity.apply(script)
+	    	edu.uvm.banner.security.BannerSecurity.apply(script, dbsession)
 	    	}catch(SQLException e){
 	    		println "WARNING: Banner Security not enabled on this object.\n" + e.getMessage()
 	    		System.exit(1);

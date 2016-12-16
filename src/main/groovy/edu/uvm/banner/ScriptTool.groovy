@@ -17,7 +17,8 @@ TODO:
 (*) Integrate w/ Banner Jobsub oneup (and optionally retain oneup values in the database)???
 (*) Indentify and define additional common input constraints.
 (*) Indentify and define additional common translation methods.
-
+(*) Do something w/ Dates - some helper to simplify data handling.
+(*) Add helper to load external class from file.
 */
 package edu.uvm.banner;
 import groovy.sql.Sql;
@@ -247,10 +248,24 @@ The following are made available for use in your script:
 
 sql - a Groovy Sql object, connected to Database & banner security has been 
 		applied.
-rpt - a TabularReport instance.
-csv - a CSV instance for reading/parsing csv files.
-dbname   - database name
+dbname   - database name   - convenience variable
 username - id of the database user  - convenience variable
+
+rpt - a TabularReport instance.
+	.lpp = lines per page (Dflt=55)
+	.cpl = characters per line (Dflt=131)
+	.addHead("left","center","right") - method to add page heading line(s)
+	.addFoot("left","center","right") - method to add page heading line(s)
+	.addColHead( width, 'L|C|R',{optional sprintf format}, ["Col label",...])
+	.pl(x) - print line where x can be a string or list of column values to print.
+
+csv - a CSV instance for reading/parsing csv files.
+
+email(Map settings).send()
+	where settings is a map of email properties as follows:
+	[to:x@uvm.edu, cc:..., bcc:..., from: ....
+	subject:'text', body:'blah, blah, blah',
+	attachments['filename1','filename2',...] ]
 
 ck       - a map of available validation methods. Contains:
 ''' + wrap_list(ck.collect({key,value->return key}),80,' '*10, ', ') + '''
@@ -259,12 +274,6 @@ tr       - a map of available translation methods. Contains:
 ''' + wrap_list(tr.collect({key,value->return key}),80,' '*10, ', ') + '''
 
 dbgShow(msg) - This method prints msg to stdout if -verbose. debug messages.
-
-email(Map settings).send()
-	where settings is a map of email properties as follows:
-	[to:x@uvm.edu, cc:..., bcc:..., from: ....
-	subject:'text', body:'blah, blah, blah',
-	attachments['filename1','filename2',...] ]
 
 tr_input(closure) - generates a ck constraint that can transform/modify
     a users input. For instance tr_input(tr.ucase) can be used to convert
@@ -275,8 +284,9 @@ m = os_exec(String cmd) - executes an os command and returns a map.
                   m.serr - string containing any errors sent to stderr
                   m.sout - string containing the output sent to stdout
 
-connect(dbc)	   - connect to a database using the same dbc syntax  
-connect(dbc,true)    described above.   Add 'true' to -enableBanner
+Sql s1 = connect(dbc)	   - connect to a additional database using the
+Sql s1 = connect(dbc,true)   same dbc syntax described above.
+                             Add 'true' to -enableBanner
 
 serviceFactory(class_name {, constructor_args})
 	i.e:
@@ -323,12 +333,12 @@ serviceFactory(class_name {, constructor_args})
 
     String fetchDBName(){
 		// Get the Database name from the database.
-		// Note: assumes Oracle.
+		// Note: assumes Oracle, but can override the default in the config file.
         String dbn
         String q = config.defaults.queries.getDBName ?:
-        			"select value from sys.v_\$parameter where name = 'db_name'"
+        			"select sys_context('userenv','db_name') from dual"
         try{
-            dbn = sql.firstRow(q)?.getAt(0)
+            dbn = delegate.sql.firstRow(q)?.getAt(0)
         }catch( Exception e ){
             dbn = null
         }
@@ -367,10 +377,7 @@ serviceFactory(class_name {, constructor_args})
 	void dbgShow(String msg){
 		if (verbose){println msg}
 	}
-	// void disp_dbc(Map dbc){
-	// 	dbgShow "Connection Info: user= ${dbc.uid}, password= ${'-'.multiply(dbc.pwd.size())}"
-	// 	dbgShow "            url: ${dbc.url}, drivername : ${dbc.drivername}"
-	// }
+
 	String[] fetchParmBuffer(){
 		// extracts from the command line any arguments that will be used as responses to 
 		// prompts.  Ignores the connection info (assumed in first position) and any 
@@ -497,11 +504,25 @@ serviceFactory(class_name {, constructor_args})
 		r.serr = serr.toString()
 		return r
 	}
-    void connect(String dbconnectstring, boolean dobansecur = false){
-    	dobannersecurity = dobansecur
-        Map dbc = getDBConnectionInfo(dbconnectstring)
-        disp_dbc(dbc)
-        openDBConnection(dbc)
+    Sql connect(String dbconnectstring = null, boolean dobansecur = false){
+    	dbgShow 'Opening new database connection.'
+        Map dbc = config.getDBConnectionInfo(dbconnectstring)
+        config.disp_dbc(dbc)
+        Sql s = config.openDBConnection(dbc)
+
+	    if (dobansecur){
+	    	config.applyBannerSecurity(s)
+	    }
+
+	    if (this.sql == null){
+	    	// here deferred connection (1st db) .. set default properties
+	    	this.sql = s
+	    	username = sql.getConnection().getUserName()
+			dbname = fetchDBName() ?:
+				extractDBName(sql.getConnection().getMetaData().getURL())
+	    }
+
+	    return s
     }
 
 	Object serviceFactory( Object cl, def constructormap = [:]){
@@ -537,11 +558,22 @@ serviceFactory(class_name {, constructor_args})
 		dbgShow "Arguments: ${args}"
 		parmbuf = fetchParmBuffer()
 
-		config = serviceFactory(edu.uvm.banner.Configurator)
-		sql = config.resolveDefaults().openDatabase()
+		config = serviceFactory(edu.uvm.banner.Configurator).resolveDefaults()
 
+		if (args.size()==0){
+			if (config.defaults.command_line){
+				args = config.defaults.command_line
+				verbose =  args.any { it == '-verbose'}
+				dobannersecurity = args.any { it == '-enableBanner'}
+				dbgShow ">Using command line parameters from config."
+			}else{// here nothing provided... assume no database desired
+				args = ['-NODB']
+			}
+		}
+
+		sql = config.openDatabase()
 	    if (dobannersecurity){
-	    	config.applyBannerSecurity()
+	    	config.applyBannerSecurity(sql)
 	    }
 
 		if (sql){
