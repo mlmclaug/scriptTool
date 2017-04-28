@@ -293,6 +293,8 @@ serviceFactory(class_name {, constructor_args})
 	c = serviceFactory(edu.uvm.banner.Population)
 	c = serviceFactory(edu.uvm.banner.Population, [p1:'aaa',p2:'bbb'])
 	c = serviceFactory(edu.uvm.banner.Population, ['aaa','bbb']  as Object[])
+	c = serviceFactory(new File(filename))  // Load class from an external file
+	c = serviceFactory(filename)   // Load class from an external file
 
 	serviceFactory instantiates an instance of a class and adds a 'script' 
 	property. The script property makes all the script properties and methods 
@@ -529,6 +531,16 @@ serviceFactory(class_name {, constructor_args})
 	    def c =  cl.newInstance(constructormap)
 	    c.metaClass.getScript =  { -> this }     
 	    return c
+	}
+	Object serviceFactory( File f, def constructormap = [:]){
+		// Load a class from and external file.
+		def gcl = new GroovyClassLoader()
+		def clazz = gcl.parseClass(f)
+		serviceFactory(clazz,constructormap)
+	}
+	Object serviceFactory( String filename, def constructormap = [:]){
+		// Load a class from and external file. filename is the name of the file.
+		serviceFactory( new File(filename), constructormap)
 	}
 
 	def run() {
