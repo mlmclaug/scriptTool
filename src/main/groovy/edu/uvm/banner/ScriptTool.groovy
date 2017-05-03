@@ -499,7 +499,7 @@ serviceFactory(class_name {, constructor_args})
 		def serr = new StringBuilder()
 		def proc = cmd.execute(null, new File("."))
 		proc.consumeProcessOutput(sout, serr)
-		proc.waitFor()
+		proc.waitForProcessOutput()	//waitFor()
 
 		r.exitValue = proc.exitValue()
 		r.sout = sout.toString()
