@@ -33,13 +33,11 @@ the Oracle OCI client is used to connect to the database.
 -enableBanner = if specified, banner security checking and banner role 
                 elevation will be performed.
 
-{-F{xx}} = Overrides the default path/name of the output report file.
-		The default report file is {current directory}/{yourscript}.lis
-		if {xx} is a directory path, the report file will be 
-				{xx}/{yourscript}.lis
-		if {xx} is not a directory, the report file will be {xx}
-		if -F and no other information is provided, the report output is
-			sent to STDOUT.
+{-F{xx}} = Overrides the default path/name of the output report file.  
+    &nbsp;&nbsp;&nbsp;&nbsp;The default report file is {current directory}/{yourscript}.lis  
+    &nbsp;&nbsp;&nbsp;&nbsp;if {xx} is a directory path, the report file will be {xx}/{yourscript}.lis  
+	&nbsp;&nbsp;&nbsp;&nbsp;if {xx} is not a directory, the report file will be {xx}  
+	&nbsp;&nbsp;&nbsp;&nbsp;if -F and no other information is provided, the report output is sent to STDOUT.  
 
 -verbose = Display details about what is happening.
 
@@ -55,21 +53,21 @@ sql - a Groovy Sql object, connected to Database & banner security has been
 dbname   - database name   - convenience variable
 username - id of the database user  - convenience variable
 
-rpt - a TabularReport instance.
-        .lpp = lines per page (Dflt=55)
-        .cpl = characters per line (Dflt=131)
-        .addHead("left","center","right") - method to add page heading line(s)
-        .addFoot("left","center","right") - method to add page heading line(s)
-        .addColHead( width, 'L|C|R',{optional sprintf format}, ["Col label",...])
-        .pl(x) - print line where x can be a string or list of column values to print.
+rpt - a TabularReport instance.  
+    &nbsp;&nbsp;&nbsp;&nbsp;.lpp = lines per page (Dflt=55)  
+    &nbsp;&nbsp;&nbsp;&nbsp;.cpl = characters per line (Dflt=131)  
+    &nbsp;&nbsp;&nbsp;&nbsp;.addHead("left","center","right") - method to add page heading line(s)  
+    &nbsp;&nbsp;&nbsp;&nbsp;.addFoot("left","center","right") - method to add page heading line(s)  
+    &nbsp;&nbsp;&nbsp;&nbsp;.addColHead( width, 'L|C|R',{optional sprintf format}, ["Col label",...])  
+    &nbsp;&nbsp;&nbsp;&nbsp;.pl(x) - print line where x can be a string or list of column values to print.  
 
 csv - a CSV instance for reading/parsing csv files.
 
-email(Map settings).send()
-        where settings is a map of email properties as follows:
-        [to:x@uvm.edu, cc:..., bcc:..., from: ....
-        subject:'text', body:'blah, blah, blah',
-        attachments['filename1','filename2',...] ]
+email(Map settings).send()  
+    &nbsp;&nbsp;&nbsp;&nbsp;where settings is a map of email properties as follows:  
+    &nbsp;&nbsp;&nbsp;&nbsp;[to:x@uvm.edu, cc:..., bcc:..., from: ....  
+    &nbsp;&nbsp;&nbsp;&nbsp;subject:'text', body:'blah, blah, blah',  
+    &nbsp;&nbsp;&nbsp;&nbsp;attachments['filename1','filename2',...] ]  
 
 ck       - a map of available validation methods. Contains:
           required, isNumber, isInteger, isBigDecimal, isInList, isBetween, 
@@ -83,26 +81,25 @@ tr_input(closure) - generates a ck constraint that can transform/modify
     a users input. For instance tr_input(tr.ucase) can be used to convert
     user input into upper case.
 
-m = os_exec(String cmd) - executes an os command and returns a map.
-                  m.returnValue - return code, 0 if ok
-                  m.serr - string containing any errors sent to stderr
-                  m.sout - string containing the output sent to stdout
+m = os_exec(String cmd) - executes an os command and returns a map.  
+        &nbsp;&nbsp;&nbsp;&nbsp;m.returnValue - return code, 0 if ok  
+        &nbsp;&nbsp;&nbsp;&nbsp;m.serr - string containing any errors sent to stderr  
+        &nbsp;&nbsp;&nbsp;&nbsp;m.sout - string containing the output sent to stdout  
 
-Sql s1 = connect(dbc)      - connect to a additional database using the
-Sql s1 = connect(dbc,true)   same dbc syntax described above.
-                             Add 'true' to -enableBanner
+Sql s1 = connect(dbc)  
+Sql s1 = connect(dbc,true)  
+         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;connect to a additional database using the same dbc syntax described above. Add 'true' to -enableBanner  
 
-serviceFactory(class_name {, constructor_args}) - 
-|        |i.e:|
-|        |c = serviceFactory(edu.uvm.banner.Population)|
-|        |c = serviceFactory(edu.uvm.banner.Population, [p1:'aaa',p2:'bbb'])|
-|        |c = serviceFactory(edu.uvm.banner.Population, ['aaa','bbb']  as Object[])|
-|        |c = serviceFactory(new File(filename))  // Load class from an external file|
-|        |c = serviceFactory(filename)   // Load class from an external file|
+serviceFactory(class_name {, constructor_args}) -  
+&nbsp;&nbsp;&nbsp;&nbsp;i.e:  
+&nbsp;&nbsp;&nbsp;&nbsp;c = serviceFactory(edu.uvm.banner.Population)  
+&nbsp;&nbsp;&nbsp;&nbsp;c = serviceFactory(edu.uvm.banner.Population, [p1:'aaa',p2:'bbb'])   
+&nbsp;&nbsp;&nbsp;&nbsp;c = serviceFactory(edu.uvm.banner.Population, ['aaa','bbb']  as Object[])  
+&nbsp;&nbsp;&nbsp;&nbsp;c = serviceFactory(new File(filename))  // Load class from an external file  
+&nbsp;&nbsp;&nbsp;&nbsp;c = serviceFactory(filename)   // Load class from an external file  
 
-|        |serviceFactory instantiates an instance of a class and adds a 'script' 
+serviceFactory instantiates an instance of a class and adds a 'script' 
 property. The script property makes all the script properties and methods 
 available for use in to the service class.
-The service class can now call:  script.sql ... script.username  etc...|
-
+The service class can now call:  script.sql ... script.username  etc...
 
