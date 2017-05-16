@@ -92,17 +92,17 @@ Sql s1 = connect(dbc)      - connect to a additional database using the
 Sql s1 = connect(dbc,true)   same dbc syntax described above.
                              Add 'true' to -enableBanner
 
-serviceFactory(class_name {, constructor_args})
-        i.e:
-        c = serviceFactory(edu.uvm.banner.Population)
-        c = serviceFactory(edu.uvm.banner.Population, [p1:'aaa',p2:'bbb'])
-        c = serviceFactory(edu.uvm.banner.Population, ['aaa','bbb']  as Object[])
-        c = serviceFactory(new File(filename))  // Load class from an external file
-        c = serviceFactory(filename)   // Load class from an external file
+serviceFactory(class_name {, constructor_args}) - 
+|        |i.e:|
+|        |c = serviceFactory(edu.uvm.banner.Population)|
+|        |c = serviceFactory(edu.uvm.banner.Population, [p1:'aaa',p2:'bbb'])|
+|        |c = serviceFactory(edu.uvm.banner.Population, ['aaa','bbb']  as Object[])|
+|        |c = serviceFactory(new File(filename))  // Load class from an external file|
+|        |c = serviceFactory(filename)   // Load class from an external file|
 
-        serviceFactory instantiates an instance of a class and adds a 'script' 
-        property. The script property makes all the script properties and methods 
-        available for use in to the service class.
-        The service class can now call:  script.sql ... script.username  etc...
+|        |serviceFactory instantiates an instance of a class and adds a 'script' 
+property. The script property makes all the script properties and methods 
+available for use in to the service class.
+The service class can now call:  script.sql ... script.username  etc...|
 
 
