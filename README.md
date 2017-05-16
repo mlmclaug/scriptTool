@@ -10,9 +10,9 @@ To use:
 - Add preferred JDBC Driver to the class path.
 - Optionally Add Oracle OCI directory to the classpath  and set LD_LIBRARY_PATH if using Oracle SEP's authentication.
 
-- Add the following 2 lines to the top of your {yourscript}.groovy:
-      import edu.uvm.banner.ScriptTool;
-      @groovy.transform.BaseScript ScriptTool scriptTool
+- Add the following 2 lines to the top of your {yourscript}.groovy:  
+>      import edu.uvm.banner.ScriptTool;
+>      @groovy.transform.BaseScript ScriptTool scriptTool
 
 and then call your script as follows:
 
