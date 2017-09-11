@@ -103,3 +103,13 @@ property. The script property makes all the script properties and methods
 available for use in to the service class.
 The service class can now call:  script.sql ... script.username  etc...
 
+## Building from source ##
+
+Note: Due to Oracle license restrictions, the Oracle JDBC driver is not available in the public Maven repository. To use the Oracle JDBC driver with Maven, you have to download and install it manually into your Maven local repository.
+
+* git clone https://github.com/mlmclaug/scriptTool.git
+* cd scriptTool
+* ./gradlew setseed  (1)
+* ./gradlew build
+
+(1) You only need input local seed numbers once, enter 0's if unused.
