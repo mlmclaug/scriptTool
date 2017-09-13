@@ -140,6 +140,11 @@ abstract class ScriptTool  extends groovy.lang.Script {
   							and (spriden_id = ?1 or spbpers_ssn = ?1)'''
 			sql.firstRow(q,[studentID])?.getAt(0) ?: 0
 		}
+		tr['getglobal'] = {global_name -> 
+	        String q = config.defaults.queries.tr.getglobal ?:
+						'select uvm_utils.GET_GLOBAL_VALUE(?) "value" from dual'
+			sql?.firstRow(q,[global_name])?.getAt(0) ?: ''
+		}
 	}
 
 	String input(String p, String dflt='',Closure... validations ){
@@ -258,6 +263,8 @@ rpt - a TabularReport instance.
 	.addFoot("left","center","right") - method to add page heading line(s)
 	.addColHead( width, 'L|C|R',{optional sprintf format}, ["Col label",...])
 	.pl(x) - print line where x can be a string or list of column values to print.
+
+String = input(prompt,{default},{check Constraint closures....}) - collect runtime parameter from command line or by prompting user.
 
 csv - a CSV instance for reading/parsing csv files.
 
@@ -437,8 +444,22 @@ serviceFactory(class_name {, constructor_args})
 		}
 	}
 
-	Email email(Map m){
-		new Email(m)
+	Email email(Map m = [:]){
+		// Get any default values from configuration file.
+		Map dflts = [:]
+		if (config.defaults.email){
+			List props = ['host', 'port', 'starttls', 'username', 'password', 
+							'from', 'to', 'cc', 'bcc', 'subject', 'body']
+			props.each {
+				if (config.defaults.email.isSet(it)){
+			     	dflts[it] = config.defaults.email[it]
+				}
+			}
+		}
+		//override w/ any constructor arguments
+		dflts = dflts << m
+
+		new Email(dflts)
 	}
 
 	Closure tr_input(Closure transformer ){

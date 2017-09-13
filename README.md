@@ -23,7 +23,7 @@ where
 dbc = the database connection information such as the following: 
 ~~~~
       /, /@prod, joe@aist, 
-      or joe@jdbc:oracle:thin:@ldap://ldap.uvm.edu:389/AIST, CN=...
+      or joe@jdbc:oracle:thin:@ldap://ldap.yourhost.com:400/DBNAME, CN=...
 ~~~~
 If the userid or password is not supplied, they will be prompted for.
 Note: Normally uses the Oracle JDBC thin client, except when 
@@ -36,21 +36,22 @@ the Oracle OCI client is used to connect to the database.
 {-F{xx}} = Overrides the default path/name of the output report file.  
     &nbsp;&nbsp;&nbsp;&nbsp;The default report file is {current directory}/{yourscript}.lis  
     &nbsp;&nbsp;&nbsp;&nbsp;if {xx} is a directory path, the report file will be {xx}/{yourscript}.lis  
-	&nbsp;&nbsp;&nbsp;&nbsp;if {xx} is not a directory, the report file will be {xx}  
-	&nbsp;&nbsp;&nbsp;&nbsp;if -F and no other information is provided, the report output is sent to STDOUT.  
+  &nbsp;&nbsp;&nbsp;&nbsp;if {xx} is not a directory, the report file will be {xx}  
+  &nbsp;&nbsp;&nbsp;&nbsp;if -F and no other information is provided, the report output is sent to STDOUT.  
 
 -verbose = Display details about what is happening.
 
 a  b c = If provided will be used as responses to Input values that would 
-		otherwise be prompted for.
+    otherwise be prompted for.
 
 ===========================================================
 The following objects/variables are made available for use in your script:
 
 sql - a Groovy Sql object, connected to Database & banner security has been 
-		optionally applied.
+    optionally applied.
 
 dbname   - database name   - convenience variable
+
 username - id of the database user  - convenience variable
 
 rpt - a TabularReport instance.  
@@ -60,6 +61,8 @@ rpt - a TabularReport instance.
     &nbsp;&nbsp;&nbsp;&nbsp;.addFoot("left","center","right") - method to add page heading line(s)  
     &nbsp;&nbsp;&nbsp;&nbsp;.addColHead( width, 'L|C|R',{optional sprintf format}, ["Col label",...])  
     &nbsp;&nbsp;&nbsp;&nbsp;.pl(x) - print line where x can be a string or list of column values to print.  
+
+String = input(prompt,{default},{check Constraint closures....}) - collect runtime parameter from command line or by prompting user.
 
 csv - a CSV instance for reading/parsing csv files.
 
@@ -71,10 +74,11 @@ email(Map settings).send()
 
 ck       - a map of available validation methods. Contains:
           required, isNumber, isInteger, isBigDecimal, isInList, isBetween, 
-          isDate, isStudentID, isAIDY, isTermCD
+          isDate, isStudentID, isAIDY, isTermCD, fileExists, isInQry, transform
 
 tr       - a map of available translation methods. Contains:
-          studentid2pidm, term2aidy
+          studentid2pidm, term2aidy, ucase, findstudent, getglobal
+
 dbgShow(msg) - This method prints msg to stdout if -verbose. debug messages.
 
 tr_input(closure) - generates a ck constraint that can transform/modify
