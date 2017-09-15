@@ -2,21 +2,6 @@
 ! file : ar_all_holds_.sqr
 ! desc : SQR script to list all active holds for all students having a
 !        specified active hold.
-! auth : Bernadette Gratton, CIT/Admin Info Services
-! date : January 18, 2000
-!      : JAC August 4, 2003 Removed MPP hold info.
-!      : JZT Sept. 27, 2006 Removed expiration date from the report.
-!                           Added Level Code and FAFSA.
-!      : MLM Sept. 29, 2006 Added Hold From Date.
-!      : bss 20081117 1. Added class to report.
-!                     2. Added option to report only specific hold data.
-!      : bss 20091013 Changed to only look for people per JSK.
-!      : bss 20110726 Added status column to report.
-!      : jhp 20121008 Select by level so Jessica Kerchner can limit the
-!	 	      output to medical students.  Also modify procedure
-!		      get_level per Zoey Trenkle.
-!      : jhp 20140430 1) Identify college on output
-!		      2) Let user select by college
 ! ========================================================================
 
 ! 04/30/14  begin-heading 4
