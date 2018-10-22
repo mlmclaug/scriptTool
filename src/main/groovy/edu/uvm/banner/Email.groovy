@@ -93,21 +93,25 @@ public class Email {
 		multipart.addBodyPart(messageBodyPart);
 
 		// Add any attachments here
+		// Add any attachments here
 		attachments.each { f ->
 			String filename 
+			DataSource source
+
 			if ( f instanceof File ){
 			    filename = f.getName()
+			    source = new FileDataSource(f);
 			}else{ 
-			    filename = f
+			    File f2 = new File(f)
+			    filename = f2.getName()
+			    source = new FileDataSource(f2);
 			}
 
 			messageBodyPart = new MimeBodyPart();
-			DataSource source = new FileDataSource(filename);
 			messageBodyPart.setDataHandler(new DataHandler(source));
 			messageBodyPart.setFileName(filename);
 			multipart.addBodyPart(messageBodyPart);
 		}
-
 		// Send the complete message parts
 		message.setContent(multipart);
 		// Send message
