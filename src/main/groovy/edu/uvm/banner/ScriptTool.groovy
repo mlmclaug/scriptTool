@@ -1,5 +1,10 @@
 /*
 Auth: mlm - 06/13/2016
+03/24/2023 - technology refresh/update
+                gradle 2.4.4 -> 7.2
+                groovy-all 3.0.6 -> 4.0.10
+                commons-csv-1.8   -> 1.10.0
+                jakarta.mail-1.6.5 -> 2.0.1
 
 ScriptTool provides groovy scripts with the following.
 (1) A database connection that optionally applies Banner security

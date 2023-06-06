@@ -1,1 +1,4 @@
-groovyConsole -cp ./lib/*:./build/libs/scripttool.jar
+# sdk use gradle 7.2
+# sdk use groovy 4.0.10
+
+groovyConsole -cp ./lib4/*:./build/libs/scripttool.jar

@@ -169,12 +169,15 @@ static String qry_count = """
 	  and glbextr_user_id =     :user
 """	
 
-static String qry_getPIDM = """ 
-	select glbextr_key pidm from glbextr
-	where glbextr_application = :application
+static String qry_getPIDM = """
+	select glbextr_key pidm from spriden, glbextr
+	where spriden_pidm = to_number(glbextr_key)
+  	  and spriden_change_ind is null
+      and glbextr_application = :application
 	  and glbextr_selection =   :selection
 	  and glbextr_creator_id =  :creator
 	  and glbextr_user_id =     :user
+	  order by lower(spriden_last_name), spriden_first_name
 """	
 
 static String qry_ApplicationList = """ 

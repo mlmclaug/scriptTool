@@ -3,23 +3,13 @@ Auth: mlm - 06/27/2016
 
 Email is a helper class to send emails.
 
+03/24/2023 mlm - technology debt - update to jakarta.mail 2.0.1 
 */
 package edu.uvm.banner;
 import java.util.Properties;
-import javax.activation.DataHandler;
-import javax.activation.DataSource;
-import javax.activation.FileDataSource;
-import javax.mail.BodyPart;
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.Multipart;
-import javax.mail.PasswordAuthentication;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
+import jakarta.mail.*;
+import jakarta.mail.internet.*;
+import jakarta.activation.*;
 
 public class Email {
 
@@ -53,7 +43,7 @@ public class Email {
 		if (username) {
 			props.put("mail.smtp.auth", "true")
 	     	authenticator = Session.getInstance(props,      
-			new javax.mail.Authenticator() {
+			new Authenticator() {
 			protected PasswordAuthentication getPasswordAuthentication() {
 			   return new PasswordAuthentication(username, password);
 			}

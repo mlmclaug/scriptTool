@@ -103,21 +103,21 @@ class Configurator{
 		if (envdb != null && envdb.size()>0 && envdb != dbName) {
 			// here new DBname is coming from the environment and is different that the default.
 			// make sure the dbname stays consistent with dbname in the url like when overriding fom the command line.
-			script.dbgShow "  > Overridng default database name: ${dbName} changed to ${envdb}" 
+			script.dbgShow "  > Overriding default database name: ${dbName} changed to ${envdb}"
 			url = url.replace (dbName, envdb)
 			dbName = envdb
 		}
 
 		String envu = System.getenv('JDBC_CONNECTION')
 		if (envu != null && url != envu){
-			script.dbgShow "  > Overridng default url: ${envu}" 
+			script.dbgShow "  > Overriding default url: ${envu}"
 			url = envu
 		}
 
 		String envdrv = System.getenv('JDBC_DRIVER')
 		driverName =  defaults.database.driver_name
 		if (envdrv != null  && driverName != envdrv){
-			script.dbgShow "  > Overridng default driver name: ${envdrv}" 
+			script.dbgShow "  > Overriding default driver name: ${envdrv}"
 			driverName = envdrv
 		}
 
@@ -242,7 +242,7 @@ class Configurator{
 		    	Sql.LOG.level = java.util.logging.Level.SEVERE
 				sqlObj = Sql.newInstance(dbc.url, dbc.uid, dbc.pwd, dbc.drivername)
 		    	}catch(SQLException e){
-		    		println "Datbase Connection failed.\n" + e.getMessage()
+					println "Database Connection failed.\n" + e.getMessage()
 		    		System.exit(1);
 		    	}
 		    Sql.LOG.level = loglvl
@@ -263,7 +263,7 @@ class Configurator{
 	    	Sql.LOG.level = java.util.logging.Level.SEVERE
 	    	edu.uvm.banner.security.BannerSecurity.apply(script, dbsession)
 	    	}catch(SQLException e){
-	    		println "WARNING: Banner Security not enabled on this object.\n" + e.getMessage()
+				println "WARNING: Banner Security not enabled on this object.\n" + e.getMessage()
 	    		System.exit(1);
 	    	}
 	    Sql.LOG.level = loglvl

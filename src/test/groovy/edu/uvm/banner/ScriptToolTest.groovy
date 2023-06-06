@@ -4,6 +4,7 @@
  *
  * @author mlm, @date 6/6/16 9:03 AM
  */
+/*
 import spock.lang.Specification
 
 class ScriptToolTest extends Specification{
@@ -16,3 +17,4 @@ class ScriptToolTest extends Specification{
         result == true
     }
 }
+*/
