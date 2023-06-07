@@ -28,6 +28,7 @@ public class Email {
 	String bcc
 	String subject 
 	String body 
+	String bodymimetype 
 	List attachments // array of file names or File objects to attach
 
 	Session session
@@ -71,18 +72,23 @@ public class Email {
 		    InternetAddress.parse(bcc ? bcc : ''));
 		message.setSubject(subject ? subject : '');
 
+
 		// Create the message part
 		BodyPart messageBodyPart = new MimeBodyPart();
 
-		// Now set the actual message
-		messageBodyPart.setText(body ? body : '');
+		if (bodymimetype) {
+			//set the content of the email message (as html)
+			messageBodyPart.setContent(body ? body : '', bodymimetype);
+		}else{
+			// Now set the actual message (as text email)
+			messageBodyPart.setText(body ? body : '');
+		}
 
-		// Create a multipar message
+		// Create a multipart message
 		Multipart multipart = new MimeMultipart();
 		// Set text message part
 		multipart.addBodyPart(messageBodyPart);
 
-		// Add any attachments here
 		// Add any attachments here
 		attachments.each { f ->
 			String filename 
